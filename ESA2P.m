@@ -13,7 +13,7 @@ nx=numel(x); ny=numel(y); nd=numel(D);
 
 if nx*ny>100000
     Cz=sparse(nx*ny,nx*ny);
-    parfor ixy=1:nx*ny
+    for ixy=1:nx*ny
         id = X(:)-X(ixy)<covar.range(1)*parm.k.wradius  & Y(:)-Y(ixy)<covar.range(2)*parm.k.wradius;
         Cz(id,ixy) = covar.g(pdist2([X(id) Y(id)]*covar.cx,[X(ixy) Y(ixy)]*covar.cx));
     end
