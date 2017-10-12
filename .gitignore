@@ -1,5 +1,6 @@
 data_gen/data/*
 *.asv
+/result-*/
 
 # Windows image file caches
 Thumbs.db

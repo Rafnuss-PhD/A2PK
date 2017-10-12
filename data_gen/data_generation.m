@@ -191,7 +191,7 @@ if gen.plotit
 end
 
 [Sigma, gen] = Rho_generation(grid_gen,rho_true,gen); % 5. Simulate low-resolution grid_gen measurement of G
-Sigma        = Sens2std(Sigma,grid_gen,sigma);
+%Sigma        = Sens2std(Sigma,grid_gen,sigma);
 % Sigma.d         = sigma_true;
 % Sigma.x         = grid_gen.x;
 % Sigma.y         = grid_gen.y;

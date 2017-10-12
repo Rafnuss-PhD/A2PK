@@ -24,7 +24,7 @@ switch method
     case 1 % select all point in k boreholes equaly spaced
         
         %  positions of conditioning data
-        [y_id, x_id] = ndgrid(1:grid.ny, round(linspace(1,grid.nx,k)));
+        [y_id, x_id] = ndgrid(1:numel(grid.y), round(linspace(1,numel(grid.x),k)));
         pt.x = grid.x(x_id(:))';
         pt.y = grid.y(y_id(:))';
         

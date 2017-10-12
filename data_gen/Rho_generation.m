@@ -196,16 +196,11 @@ switch gen.Rho.method
             dx = (numel(gen.Rho.i.xx)-1-numel(grid_Rho.x))/2 +1;
             inside( 1:numel(grid_Rho.y), dx:end-dx+1) = true;
             
-            Sigma.Res=gen.Rho.i.output.Res;
-            Sigma.Res(~inside,:)=[]; Sigma.Res(:,~inside(:))=[];
-            Sigma.Res_out=gen.Rho.i.output.Res;
-            Sigma.Res_out(~inside,:)=[]; Sigma.Res_out(:,inside(:))=[];
-            Sigma.Res_out = sum(Sigma.Res_out,2);
-            
-
-            Sigma.res_raw       = flipud();
-            f                   = griddedInterpolant({grid_Rho.y,grid_Rho.x},Sigma.res_raw,'nearest','nearest');
-            Sigma.res           = f({grid.y,grid.x});
+            Sigma.res=gen.Rho.i.output.Res;
+            Sigma.res(~inside,:)=[]; Sigma.res(:,~inside(:))=[];
+            Sigma.res_out=gen.Rho.i.output.Res;
+            Sigma.res_out(~inside,:)=[]; Sigma.res_out(:,inside(:))=[];
+            Sigma.res_out = sum(Sigma.res_out,2);
         
         else
             Sigma.sen           = ones(size(grid.X));

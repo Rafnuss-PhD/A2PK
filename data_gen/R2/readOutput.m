@@ -73,7 +73,11 @@ if d.job_type == 1 % inverse solution
             sens = output.J*(output.Wd*output.Wd')*output.J';
             
             % Compute the Resolution Matrix
-            alpha = input('Find the last alpha value in the .out file');
+            filetext = fileread([d.filepath 'R2.out']);
+            beg = strfind(filetext,'Alpha:');
+            ed = strfind(filetext,'RMS Misfit:');  
+            alpha = str2double(filetext(beg(end)+6:ed(end-1)-1));
+            
             output.Res = (sens + alpha * output.R)^(-1) * sens;
 
             
