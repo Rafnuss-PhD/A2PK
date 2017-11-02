@@ -4,259 +4,256 @@ clc; clear all; addpath(genpath('./.')); dbstop if error
 % store the parameter and |data_generation.m| compute everything
 
 % Grid size
-gen.xmax = 120; %total length in unit [m]
-gen.ymax = 15; %total hight in unit [m]
+gen.xmax = 100; %total length in unit [m]
+gen.ymax = 20; %total hight in unit [m]
 
 % Scale define the subdivision of the grid (multigrid). At each scale, the
 % grid size is $(2^gen.sx+1) \times (2^gen.sy+1)$ 
-gen.sx = 8;
-gen.sy = 6;
+gen.nx = 800;
+gen.ny = 40;
 
 % Generation Method: All method generate with FFTMA a gaussian field.
 % 'Normal'              with normal distribution \sim N(gen.mu,gen.std)
 % 'LogNormal'   
 % 'fromRho':            log transform it with the parameter defined below 
 % 'fromK':              generate with FFTMA a field of Hyraulic conductivity and log transform it with the parameter defined below 
-gen.method              = 'fromPhi';
+gen.method              = 'fromLogPhi';
 
 % Generation parameter
 gen.samp                = 1;          % Method of sampling of K and g | 1: borehole, 2:random. For fromK or from Rho only
 gen.samp_n              = 3;          % number of well or number of point
 gen.covar(1).model      = 'exponential';
-gen.covar(1).range0     = [2.7 27];
+gen.covar(1).range0     = [5 50];
 gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
 gen.covar               = kriginginitiaite(gen.covar);
-gen.mu                  = 0.27; % parameter of the first field. 
-gen.std                 = .05;
+gen.mu                  = -1.579;%0.27; % parameter of the first field. 
+gen.std                 = 0.22361;%.05;
 gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise', 'RESINV3D'
 
 % Electrical inversion
-gen.Rho.grid.nx           = 120;
-gen.Rho.grid.ny           = 15; % log-spaced grid.
-gen.Rho.elec.spacing      = 4; % in grid spacing unit.
-gen.Rho.elec.config_max   = 6000; % number of configuration of electrode maximal 
-gen.Rho.dmin.res_matrix   = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
-gen.Rho.dmin.tolerance    = 10;
+gen.Rho.f ={};
+gen.Rho.f.res_matrix    = 0;
+gen.Rho.elec.spacing    = 8; % in grid spacing unit of the forward grid
+gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
+gen.Rho.i.grid.nx       = 200;
+gen.Rho.i.grid.ny       = 20; % log-spaced grid.
+gen.Rho.i.res_matrix    = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
 
 % Other parameter
-gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
+gen.plotit              = false;      % display graphic or not (you can still display later with |script_plot.m|)
 gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
-gen.name                = '120x20';
-gen.seed                = 23456;
+gen.name                = '800x40';
+gen.seed                = 123;
 
 % Run the function
 data_generation(gen);
 %[fieldname, grid_gen, K_true, phi_true, sigma_true, K, sigma, Sigma, gen] = data_generation(gen);
 
-%% How to compute the Resolution Matrix
-clear all; addpath(genpath('./.')); dbstop if error 
-load('result-A2PK/GEN-test_2017-09-26_17-22.mat'); %alpha = 27339.756;
-
-% Show raw result of inversion
-[X2,Y2] = meshgrid(Sigma.x_raw,Sigma.y_raw);
-figure(1); clf; c_axis=[ min(sigma_true(:)) max(sigma_true(:))];
-subplot(2,1,1); surface(grid_gen.X,grid_gen.Y,sigma_true,'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; caxis(c_axis); 
-subplot(2,1,2); surface(X2,Y2,Sigma.d_raw,'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; caxis(c_axis); 
-colorbar('south')
-
-% COmpute coordinate of the raw data
-y = zeros(1,numel(gen.Rho.i.yy)-1);
-for i=2:numel(gen.Rho.i.yy)-1
-    y(i) = 2*gen.Rho.i.yy(i) - y(i-1);
-end
-x = zeros(1,numel(gen.Rho.i.xx)-1);
-[~,id] = min(gen.Rho.i.xx.^2);
-for i=(id+1):numel(gen.Rho.i.xx)-1
-    x(i) = gen.Rho.i.xx(i) + gen.Rho.i.xx(i) - x(i-1) ;
-end
-x(1:id-1) = sort(max(grid_gen.x)-x((end-id+2):end));
-[X,Y] = meshgrid(x,y);
-
-% Compute the sensitivity matrix
-sens = gen.Rho.i.output.J*(gen.Rho.i.output.Wd*gen.Rho.i.output.Wd')*gen.Rho.i.output.J';
-
-figure(2); clf; c_axis=[ min(gen.Rho.i.output.sen(:)) max(gen.Rho.i.output.sen(:))];
-subplot(2,1,1); surface(X,Y,reshape(diag(sens),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; xlim([0 240]); ylim([0 20]); %caxis(c_axis);
-subplot(2,1,2); surface(X2,Y2,flipud(gen.Rho.i.output.sen),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; caxis(c_axis); 
-
-
-% Compute the Resolution Matrix
-Res = (sens + alpha * gen.Rho.i.output.R)^(-1) * sens;
-
-% Plot few stuff
-x=120; y=15; [~,i] = min( sqrt( (x-X(:)).^2 + (y-Y(:)).^2));
-figure(3); clf; 
-subplot(2,1,1); surface(X,Y,reshape(Res(i,:),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on
-hold on; plot(X(i),Y(i),'.r','MarkerSize',69);  colorbar('south'); xlim([0 240]); ylim([0 20])
-subplot(2,1,2); surface(X,Y,reshape(Res(i,:),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on
-
-
-figure(4); clf; 
-subplot(2,1,1); surface(X,Y,reshape(diag(Res),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; colorbar('south'); xlim([0 240]); ylim([0 20])
-subplot(2,1,2); surface(X,Y,reshape(diag(Res),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on;
-
-figure(5); clf; 
-subplot(2,1,1); surface(X,Y,reshape(sum(Res,2),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; caxis([0 1]); colorbar('south'); xlim([0 240]); ylim([0 20])
-subplot(2,1,2); surface(X,Y,reshape(sum(Res,2),numel(gen.Rho.i.yy)-1,numel(gen.Rho.i.xx)-1),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; caxis([0 1]);
-
-
 
 %%
 clear all; addpath(genpath('./.')); dbstop if error 
-load('result-A2PK/GEN-120x20_2017-10-02_17-25'); %alpha = 27339.756;
+load('result-A2PK/GEN-800x40_2017-11-02_11-32'); %alpha = 27339.756;
+
+%addpath('C:\Users\Raphael\Documents\MATLAB\ColorBrewer_ Attractive and Distinctive Colormaps\DrosteEffect-BrewerMap-aee8a46\')
+%colormap(brewermap([],'YlOrBr'))
+addpath('C:\Users\Raphael\Documents\MATLAB\Colormaps\Colormaps (5)\Colormaps\')
+colormap(viridis())
 
 [kern.prior,kern.axis_prim] = ksdensity(sigma_true(:));
 parm.nscore=1;
 Nscore = nscore(kern, parm, 0);
-Sec.x=Sigma.x_raw; Sec.y=Sigma.y_raw; [Sec.X , Sec.Y] = meshgrid(Sigma.x_raw, Sigma.y_raw); 
-Sec.d = reshape(Nscore.forward(Sigma.d_raw(:)) ,numel(Sec.y),numel(Sec.x));
+Sec=Sigma; 
+Sec.d = reshape(Nscore.forward(Sec.d(:)) ,numel(Sec.y),numel(Sec.x));
 Prim.d = reshape(Nscore.forward(sigma_true(:)), grid_gen.ny, grid_gen.nx);
 Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
 
-c_axis=[ min(Prim.d(:)) max(Prim.d(:)) ];
-figure(10)
-subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('zt True field');
-subplot(2,1,2); imagesc(Sec.x, Sec.y, Sec.d); caxis(c_axis); title('Inverted field'); axis tight; box on
 
+figure(10); clf;c_axis=[ min(Prim.d(:)) max(Prim.d(:)) ];
+subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('zt True field');
+subplot(2,1,2); imagesc(Sec.x, Sec.y, Sec.d); caxis(c_axis); title('Inverted field'); axis tight equal; box on;colormap(viridis())
+
+
+figure(101); clf; c_axis_n=log10([ min(sigma_true(:)) max(sigma_true(:)) ]);
+subplot(2,1,1);surface(grid_gen.x, grid_gen.y, log10(sigma_true),'EdgeColor','none','facecolor','flat'); 
+caxis(c_axis_n); title('True Electrical Conductivity \sigma^{true}');axis equal tight; box on; xlabel('x');ylabel('y'); set(gca,'Ydir','reverse');
+subplot(2,1,2); surface(Sec.x, Sec.y, log10(Sigma.d),'EdgeColor','none','facecolor','flat'); 
+caxis(c_axis_n); title('Inverted Electrical Conductivity U \sigma^{est}'); axis equal tight; box on; xlabel('x');ylabel('y');set(gca,'Ydir','reverse'); colorbar('southoutside')
+colormap(viridis())
 
 % Built the matrix G which link the true variable Prim.d to the measured coarse scale d
 G = zeros(numel(Sec.d), numel(Prim.d));
 for i=1:numel(Sec.d)
     Res = reshape(Sigma.res(i,:)+Sigma.res_out(i)/numel(Sigma.res(i,:)),numel(Sec.y),numel(Sec.x));
-    f = griddedInterpolant({Sec.y,Sec.x},Res,'nearest');
+    f = griddedInterpolant({Sec.y,Sec.x},Res,'linear');
     res_t = f({Prim.y,Prim.x});
     G(i,:) = res_t(:) ./sum(res_t(:));
 end
 
-i=10;
-figure(1); clf; 
-subplot(2,1,1);surface(Sec.X,Sec.Y,reshape(Sigma.res(i,:),numel(Sec.y),numel(Sec.x)),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; hold on; scatter3(Sec.X(i),Sec.Y(i),100,'filled','r')
-subplot(2,1,2);surface(Prim.X,Prim.Y,reshape(G(i,:), numel(Prim.y), numel(Prim.x)),'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; hold on; scatter3(Sec.X(i),Sec.Y(i),100,'filled','r')
+
+
+i=[905 1838 3855]; th=.05;
+figure(1); clf; colormap(viridis())
+subplot(3,numel(i),[1 numel(i)]);hold on; surface(Sec.X,Sec.Y,reshape(log(diag(Sigma.res)),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  scatter3(Sec.X(i),Sec.Y(i),100*ones(numel(i),1),'sr','filled')
+view(2); axis tight equal; set(gca,'Ydir','reverse'); box on; axis equal tight; xlabel('x');ylabel('y'); title('Diagonal of the resolution matrix R'); colorbar;
+for ii=1:numel(i)
+    subplot(3,numel(i),numel(i)+ii);hold on; surface(Sec.X,Sec.Y,reshape(Sigma.res(i(ii),:),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  scatter3(Sec.X(i(ii)),Sec.Y(i(ii)),100,'sr','filled')
+    view(2); axis tight equal; set(gca,'Ydir','reverse'); box on; axis equal tight; xlabel('x');ylabel('y'); title('Resolution of the red dot R(i,:)')
+    subplot(3,numel(i),2*numel(i)+ii);hold on; surface(Prim.X,Prim.Y,reshape(G(i(ii),:), numel(Prim.y), numel(Prim.x)),'EdgeColor','none','facecolor','flat'); scatter3(Sec.X(i(ii)),Sec.Y(i(ii)),100,'sr','filled')
+    view(2); axis tight equal; set(gca,'Ydir','reverse'); box on;  axis equal tight; colorbar('southoutside'); xlabel('x');ylabel('y')
+end
 
 
 % Compute coarse scale d
 Test_Sec_d = reshape(G * Prim.d(:), numel(Sec.y), numel(Sec.x));
-figure(2); clf; 
-subplot(2,1,1);surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on; colorbar(); caxis([-3 3])
-subplot(2,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none'); view(2); axis tight; set(gca,'Ydir','reverse'); box on;  colorbar(); caxis([-3 3])
+figure(2); clf; colormap(viridis())
+subplot(2,1,1);surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse'); caxis([-3 3]); axis equal tight; box on; xlabel('x');ylabel('y'); title('Inverted Electrical Conductivity \Sigma^{est}')
+subplot(2,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  caxis([-3 3]);axis equal tight; box on; xlabel('x');ylabel('y'); colorbar('southoutside'); title('G-transform of the True Electrical Conductivity Gz^{true}')
 
 
 % Simulate sampling
-Prim_pt = sampling_pt(Prim,Prim.d,2,0);
-
-% Direct Simulation
-parm.k.covar = gen.covar;
-parm.seed_U = 'shuffle';
-parm.n_real=10;
-
-k=100;
-pt=net(haltonset(2),k);
-[~,idx] = min(bsxfun(@minus,Sec.X(:),pt(:,1)'.*Sec.x(end)).^2 + bsxfun(@minus,Sec.Y(:),pt(:,2)'.*Sec.y(end)).^2);
-
-D = Sec.d(idx)';
-G2=G(idx,:);
-[Res] = ESA2P(Prim.y,Prim.x,Prim_pt,D,G2,parm);
+Prim_pt = sampling_pt(Prim,Prim.d,1,1);
 
 
-inside=false( numel(gen.Rho.i.yy)-1, numel(gen.Rho.i.xx)-1);
-dx = (numel(gen.Rho.i.xx)-1-numel(gen.Rho.grid.x))/2 +1;
-inside( 1:numel(gen.Rho.grid.y), dx:end-dx+1) = true;
-Cm = sqrtm(full(gen.Rho.i.output.R(inside,inside)));
+% Compute the covariance of the data error
+
+Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
 Cmt=(eye(size(Sigma.res))-Sigma.res)*Cm;
-[Res] = ESA2P(Prim.y,Prim.x,Prim_pt,D,G2,parm,Cmt(idx,idx));
 
 
-figure(1);clf
-c_axis=[ min(Prim.d(:)) max(Prim.d(:))];
-subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none'); caxis(c_axis); title('Prim.d True field');;view(2); axis tight; set(gca,'Ydir','reverse'); box on
-subplot(4,1,2);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none'); caxis(c_axis); title('d Average of True field');view(2); axis tight; set(gca,'Ydir','reverse'); box on
-subplot(4,1,3);surf(Prim.x, Prim.y, Res(:,:,1),'EdgeColor','none'); caxis(c_axis);view(2); axis tight; set(gca,'Ydir','reverse'); box on
+% Subsample D
+% k=floor(trace(Sigma.res));
+% pt=net(haltonset(2),k);
+% [~,idx] = min(bsxfun(@minus,Sec.X(:),pt(:,1)'.*Sec.x(end)).^2 + bsxfun(@minus,Sec.Y(:),pt(:,2)'.*Sec.y(end)).^2);
+% idx=unique(idx);
+% Sec.d(:) = Sec.d(idx)';
+% G=G(idx,:);
+
+
+
+% Simulation 
+covar = kriginginitiaite(gen.covar);
+[X, Y] = meshgrid(Prim.x, Prim.y); X=X(:);Y=Y(:);
+nx=numel(Prim.x); ny=numel(Prim.y);
+
+
+Cz = covar.g(squareform(pdist([X Y]*covar.cx)));
+%disp('Cz computed')
+Cz=sparse(Cz);
+%disp('Cz sparse computed')
+
+Czd = Cz * G';
+disp('Czd computed')
+
+Cd = G * Czd;
+disp('Cd computed')
+
+
+Cd2 = Cd+Cmt;
+Czh = covar.g(squareform(pdist([Prim_pt.x(:) Prim_pt.y(:)]*covar.cx)));% Czh =covar.g(0);
+Czzh = covar.g(pdist2([X Y]*covar.cx,[Prim_pt.x(:) Prim_pt.y(:)]*covar.cx));
+Czhd = Czd( Prim_pt.id ,:);
+
+CCa = [ Cd2 Czhd' ; Czhd Czh ];
+CCb = [ Czd' ; Czzh' ];
+disp('Covariances computed')
+
+% warning('off','all')
+W=zeros(nx*ny,numel(Sec.d(:))+Prim_pt.n);
+parfor ij=1:nx*ny
+     W(ij,:) = CCa \ CCb(:,ij);
+end
+disp('W computed')
+save('result-A2PK/GEN-400x40_2017-10-30_17-53_cond','W','Prim_pt')
+
+zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
+%zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
+figure(8); clf;   colormap(viridis())
+surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
+view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate')
+
+%subplot(2,1,2);surf(Prim.x,Prim.y,zhtest,'EdgeColor','none'); view(2); axis tight equal; set(gca,'Ydir','reverse'); box on; colorbar;
+
+
+
+parm.n_real = 500;
+
+rng('shuffle');
+zcs=nan(ny, nx,parm.n_real);
 z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
 for i_real=1:parm.n_real
-    r=Res(:,:,i_real);
-   z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
-end
-subplot(4,1,4);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none'); caxis(c_axis); title('d Average of True field');view(2); axis tight; set(gca,'Ydir','reverse'); box on
-hold on; scatter(Sec.X(idx),Sec.Y(idx),'filled','r')
-
-
-%% Direct Simualtion
-parm.k.covar = covar;
-parm.seed_U = 'shuffle';
-parm.n_real=100;
-
-[Res] = ESA2P(Prim.y,Prim.x,Prim_pt,Sec.d,G,parm);
-
-for i_real =1:parm.n_real
-    r=Res(:,:,i_real);
-    s(i_real) = var(r(:))
-    error_pt(i_real)=sqrt(sum((r(Prim_pt.id(:))-Prim_pt.d).^2));
-    Res_d(:,:,i_real) = reshape(G * r(:), numel(Sec.y), numel(Sec.x));
-    error_d(i_real) = sqrt(sum(sum((Res_d(:,:,i_real) - Sec.d ).^2)));
-end
-
-figure(3); clf
-c_axis=[ min(Prim.d(:)) max(Prim.d(:))];
-subplot(parm.n_real+1,2,1);imagesc(Prim.x, Prim.y, Prim.d); caxis(c_axis); title('Prim.d True field'); hold on;
-scatter(Prim_pt.x,Prim_pt.y,[],Prim_pt.d,'filled','MarkerEdgeColor','k'); axis tight equal; box on
-subplot(parm.n_real+1,2,2);imagesc(Sec.x, Sec.y, Sec.d); caxis(c_axis); title('d Average of True field'); axis tight equal; box on
-for i_real =1:parm.n_real
-    subplot(parm.n_real+1,2,i_real*2+1);imagesc(Prim.x, Prim.y,Res(:,:,i_real)); caxis(c_axis); title('Res');view(2); axis tight equal;box on
-    hold on; scatter(Prim_pt.x,Prim_pt.y,[],Prim_pt.d,'filled','MarkerEdgeColor','k'); axis tight equal; box on
-    subplot(parm.n_real+1,2,i_real*2+2);imagesc(Sec.x, Sec.y, Res_d(:,:,i_real)); caxis(c_axis); title('Res d Average'); axis tight equal; box on
+    zs = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
+    zhs = W * [G * zs(:) ; zs(Prim_pt.id)];
+    r = zh(:) + (zs(:) - zhs(:));
+    zcs(:,:,i_real) = reshape( (r-mean(r))./std(r), ny, nx);
+    z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
 end
 
 
-
-
-%% Sequential Simulation
-
-parm.k.covar = covar;
-parm.seed_path = 'shuffle';
-parm.seed_search = 'shuffle';
-parm.seed_U = 'shuffle';
-
-parm.k.method = 'sbss';
-parm.k.lookup = false;
-parm.k.nb = 30;
-parm.k.wradius = 30;
-
-parm.mg = 0;
-
-parm.n_real=10;
-
-Prim_sim=Prim;
-Prim_sim.d=[];
-
-Res = SSA2P(Prim.y,Prim.x,Prim_pt,Sec.d,G,parm);
-
-for i_real =1:parm.n_real
-    r=Res(:,:,i_real);
-    s(i_real) = var(r(:));
-   % Res(:,:,i_real) = Res(:,:,i_real) ./ var(r(:));
-    Res_d(:,:,i_real) = reshape(G * r(:), numel(Sec.y), numel(Sec.x));
-end
-
-
-% Plot
-figure(2);clf
-c_axis=[ min(Prim.d(:)) max(Prim.d(:))];
-subplot(parm.n_real+1,2,1);imagesc(Prim.x, Prim.y, Prim.d); caxis(c_axis); title('Prim.d True field');;view(2); axis tight; set(gca,'Ydir','reverse'); box on
-hold on; scatter(Prim_pt.x,Prim_pt.y,[],Prim_pt.d,'filled','MarkerEdgeColor','k'); axis tight equal; box on
-subplot(parm.n_real+1,2,2);imagesc(Sec.x, Sec.y, Sec.d); caxis(c_axis); title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
-for i_real =1:parm.n_real
-    subplot(parm.n_real+1,2,i_real*2+1);imagesc(Prim.x, Prim.y,Res(:,:,i_real)); caxis(c_axis); title('Res');view(2); axis tight; set(gca,'Ydir','reverse'); box on
- hold on; scatter(Prim_pt.x,Prim_pt.y,[],Prim_pt.d,'filled','MarkerEdgeColor','k'); axis tight equal; box on
-    subplot(parm.n_real+1,2,i_real*2+2);imagesc(Sec.x, Sec.y, Res_d(:,:,i_real)); caxis(c_axis); title('Res d Average');view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
-end
+figure(10);clf; colormap(viridis())
+c_axis=[ -3 3];
+subplot(8,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis); title('True Electrical Conductivity');view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+% hold on; scatter(Prim_pt.x,Prim_pt.y,'filled','r')
+subplot(8,1,2);surf(Prim.x, Prim.y, zcs(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,3);surf(Prim.x, Prim.y, mean(zcs,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,4);surf(Prim.x, Prim.y, std(zcs,[],3),'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,5);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,6);surf(Sec.x, Sec.y, z(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,7);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
+subplot(8,1,8);surf(Sec.x, Sec.y, std(z,[],3),'EdgeColor','none','facecolor','flat');  title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); box on
 
 
 
-figure; clf;hold on
-a=variogram_gridded_perso(Prim.d);
-plot(a)
+
+figure(11);clf; hold on; colormap(viridis())
 for i_real=1:parm.n_real
-a=variogram_gridded_perso(Res(:,:,i_real));
-plot(a)
+   vario=variogram_gridded_perso(zcs(:,:,i_real));
+   h1=plot(Prim.x,vario,'b','color',[.5 .5 .5]);
 end
+vario=variogram_gridded_perso(Prim.d);
+h2=plot(Prim.x,vario,'-r','linewidth',2);
+h3=plot(Prim.x,1-covar.g(Prim.x*covar.cx(1)),'--k','linewidth',2);
+xlim([0 70]); xlabel('Lag-distance h ');ylabel('Variogram \gamma(h)')
+legend([h1 h2 h3],'500 realizations','True field','Theorical Model')
+
+
+
+%% Forward simulation
+
+for i_real=1:parm.n_real
+    z1=zcs(:,:,i_real);
+    s1 = reshape(Nscore.inverse(z1(:)) ,numel(Prim.y),numel(Prim.x));
+    
+
+f = gen.Rho.f;
+f.res_matrix = gen.Rho.f.res_matrix;
+f.grid.x            = gen.Rho.f.x;
+f.grid.y            = gen.Rho.f.y;
+f.grid.x_n          = gen.Rho.f.x_n;
+f.grid.y_n          = gen.Rho.f.y_n;
+
+
+% Forward
+f.header            = 'Forward';  % title of up to 80 characters
+f.job_type          = 0;
+f.filepath          = filepath;
+f.readonly          = 0;
+f.alpha_aniso       = gen.covar.range0(2)/gen.covar.range0(1);
+
+% Rho value
+% f                  = griddedInterpolant({grid.y,grid.x},rho_true,'nearest','nearest');
+f.rho               = rho_true; % f({grid_Rho.y,grid_Rho.x});
+% f.dmin.filename       = 'gtrue.dat';
+f.num_regions       = 1+numel(f.rho);
+f.rho_min           = min(rho_true(:));
+f.rho_avg           = mean(rho_true(:));
+f.rho_max           = max(rho_true(:))*2;
+f                   = Matlat2R2(f,gen.Rho.elec); % write file and run forward modeling
+
+    
+    
+    
+    
+    Matlat2R2(gen.Rho.grid, dmin, gen.Rho.elec);
+end
+

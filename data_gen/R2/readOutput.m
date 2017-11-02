@@ -1,4 +1,4 @@
-function output=readOutput(d,grid_G)
+function output=readOutput(d)
 
 if d.job_type == 1 % inverse solution
     
@@ -13,7 +13,7 @@ if d.job_type == 1 % inverse solution
     end
     
     % read resistivity result
-    output.res=flipud(reshape(data(:,3),grid_G.ny,grid_G.nx));
+    output.res=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
 
     % read error result
     data            = dlmread([d.filepath dataset '_err.dat'],'',1,0);
@@ -24,14 +24,14 @@ if d.job_type == 1 % inverse solution
     if d.res_matrix==1 % 1-'sensitivity' matrix
         try
             data=dlmread([d.filepath dataset '_sen.dat']);
-            output.sen=flipud(reshape(data(:,3),grid_G.ny,grid_G.nx));
+            output.sen=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
         catch
             output.sen=NaN;
         end
     elseif d.res_matrix==2 % 2-true resolution matrix - diagonal element
         try
             data=dlmread([d.filepath dataset '_rad.dat']);
-            output.rad=flipud(reshape(data(:,3),grid_G.ny,grid_G.nx));
+            output.rad=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
         catch
             output.rad=NaN;
         end
@@ -39,7 +39,7 @@ if d.job_type == 1 % inverse solution
         try
 
             data=dlmread([d.filepath dataset '_sen.dat']);
-            output.sen=flipud(reshape(data(:,3),grid_G.ny,grid_G.nx));
+            output.sen=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
             
             n_parm = (d.numnp_y-1)*(d.numnp_x-1);
             n_obs = numel(d.pseudo_x);
@@ -47,7 +47,11 @@ if d.job_type == 1 % inverse solution
             % Jacobian Matrix
             data=dlmread([d.filepath dataset '_J.dat']);
             J = data(2:end,:)';
-            output.J=reshape( J(:), n_parm,n_obs);
+            if numel(J)== n_parm * n_obs
+                output.J=reshape( J, n_parm, n_obs);
+            else
+                output.J=reshape( J(J(:)~=0), n_parm, n_obs);
+            end
             %imagesc(output.J)
             
             % Roughness matrix m-m_ref
@@ -67,7 +71,10 @@ if d.job_type == 1 % inverse solution
             
             % Data Weight
             data=importdata([d.filepath dataset '_err.dat']);
-            output.Wd=sparse(diag(data.data(:,5)));
+            diagWd=zeros(n_obs,1);
+            diagWd(sum(abs(output.J))~=0) = data.data(:,5);
+            output.Wd=sparse(diag(diagWd));
+
              
             % Compute the sensitivity matrix
             sens = output.J*(output.Wd*output.Wd')*output.J';
@@ -75,13 +82,19 @@ if d.job_type == 1 % inverse solution
             % Compute the Resolution Matrix
             filetext = fileread([d.filepath 'R2.out']);
             beg = strfind(filetext,'Alpha:');
-            ed = strfind(filetext,'RMS Misfit:');  
-            alpha = str2double(filetext(beg(end)+6:ed(end-1)-1));
+            ed = strfind(filetext(beg:end),'RMS Misfit:');  
+            alpha = str2double(filetext(beg(end)+6:beg(end)+ed(1)-3));
             
             output.Res = (sens + alpha * output.R)^(-1) * sens;
 
+            % Compute the zone inside, that is removing the buffer zone
+            output.inside=false( d.numnp_y-1, d.numnp_x-1);
+            dx = (d.numnp_x-1-d.grid.nx)/2 +1;
+            output.inside( 1:d.grid.ny, dx:end-dx+1) = true;
             
         catch
+            warning('Not reading the jacobien, ressolution... matrices')
+            keyboard;
             output.sen=NaN;
             output.J=NaN;
             output.R=NaN;
@@ -93,26 +106,29 @@ else
     data=dlmread([d.filepath 'forward_model.dat']);
     % output.x=unique(data(:,1));
     % output.y=-unique(data(:,2));  
-    output.re=flipud(reshape(data(:,3),grid_G.ny,grid_G.nx));
+    % output.re=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
     
     data=dlmread([d.filepath 'R2_forward.dat'],'',1,0);
     assert(size(data,2)==7)
     output.pseudo=data(:,7);
-end
-
-
-% Interpolation
-if numel(d.pseudo_x) == numel(output.pseudo)
-    f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.pseudo,'nearest','none');
-    output.pseudo_interp = f({grid_G.y,grid_G.x});
+    output.resistance=data(:,6);
     
-    if d.job_type == 1
-        f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.err,'nearest','none');
-        output.err_interp = f({grid_G.y,grid_G.x});
+    % Interpolation
+    if numel(d.pseudo_x) == numel(output.pseudo)
+        f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.pseudo,'nearest','none');
+        output.pseudo_interp = f({d.grid.y,d.grid.x});
+        
+%         if d.job_type == 1
+%             f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.err,'nearest','none');
+%             output.err_interp = f({d.grid.y,d.grid.x});
+%         end
+    else
+        output.pseudo_interp = nan(numel(d.grid.x),numel(d.grid.y));
     end
-else
-    output.pseudo_interp = nan(numel(grid_G.x),numel(grid_G.y));
+
 end
+
+
 
 
 end

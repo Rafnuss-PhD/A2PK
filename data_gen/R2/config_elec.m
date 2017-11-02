@@ -73,8 +73,8 @@ switch elec.method
         k_fx    = @(n,a) pi*n*(n+1)*a;
     case 'dipole-dipole'            % B <--a--> A <--na--> M <--a--> N          k = pi n(n+1)(n+2)a
         zec=[.139 .174 .192 .203 .211 .216 .22 .224 .255];
-        B_fx    = @(u,n,a) u;
-        A_fx    = @(u,n,a) u+a;
+        A_fx    = @(u,n,a) u;
+        B_fx    = @(u,n,a) u+a;
         M_fx    = @(u,n,a) u+a+n*a;
         N_fx    = @(u,n,a) u+a+a*n+a;
         good    = @(u,n,a,nn) (u+(a+1)+(a+1)*n+(a+1))<=nn;
@@ -115,7 +115,7 @@ while good_u
         while good_a
             a=a+1;
             i=i+1;
-            data(i,:)   = [A_fx(u,n,a) B_fx(u,n,a) M_fx(u,n,a) N_fx(u,n,a)];
+            data(i,:)   = [M_fx(u,n,a) N_fx(u,n,a) A_fx(u,n,a) B_fx(u,n,a)];
             pos(i,:)    = [xa_fx(u,n,a) ze_fx(u,n,a)];
             k(i)        = k_fx(n,a);
             assert(any(data(i,:)<=elec.n))

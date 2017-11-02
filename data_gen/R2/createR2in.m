@@ -11,7 +11,7 @@ assert(d.job_type==0 || d.job_type==1,'job_type need to be ''0'' or ''1''')
 assert(d.mesh_type==3 || d.mesh_type==4 || d.mesh_type==5,'mesh_type need to be ''3'', ''4'' or ''5''')
 assert(d.flux_type==2.0 || d.flux_type==3,'flux_type need to be ''2.0'' or ''3.0''')
 assert(d.singular_type==0 || d.singular_type==1,'singular_type need to be ''0'' or ''1''')
-assert(d.res_matrix==1 || d.res_matrix==2 || d.res_matrix==3,'flux_type need to be ''1'', ''2'' or ''3''')
+assert(d.res_matrix==0 ||d.res_matrix==1 || d.res_matrix==2 || d.res_matrix==3,'flux_type need to be ''1'', ''2'' or ''3''')
 fprintf(fileID,'%d  %d  %1.1f  %d  %d    << job_type, mesh_type, flux_type, singular_type, res_matrix\n\n',d.job_type, d.mesh_type, d.flux_type, d.singular_type, d.res_matrix);
 
 %% MESH SETTING

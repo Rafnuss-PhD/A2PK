@@ -17,19 +17,21 @@
 % * forward_model.dat : x, y, resis, log10(resis)
 % INVERSE
 
-function d = Matlat2R2(grid_Rho,dmin,elec)
+function d = Matlat2R2(d,elec)
+% d is either the inverser (i) or forward (f) structure
+
 % x and y need to be node (intersection of cells) and not cell centered
-x = grid_Rho.x_n;
-y = grid_Rho.y_n;
+x = d.grid.x_n;
+y = d.grid.y_n-d.grid.y_n(1);
 
 %% BASIC GENERAL SETTING
-d.header                = dmin.header;      % title of up to 80 characters
-d.job_type              = dmin.job_type;    % 0 for forward solution only or 1 for inverse solution
+% d.header                = d.header;      % title of up to 80 characters
+% d.job_type              = d.job_type;    % 0 for forward solution only or 1 for inverse solution
 d.mesh_type             = 4;                % mesh: 3-triangular, 4-regular quadrilateral, 5-generalised quadrilateral
 d.flux_type             = 3.0;              % current flow: 2.0-2D (i.e. line electrodes) or 3.0-fully 3D (usual mode)
 d.singular_type         = 0;                % Singularity: 1-removal applied , 0-no removal
-d.res_matrix            = dmin.res_matrix;  % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
-d.filepath              = dmin.filepath;    % where to write the file
+% d.res_matrix            = d.res_matrix;  % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
+% d.filepath              = d.filepath;    % where to write the file
 
 %% MESH CONSTRUCTION
 switch d.mesh_type
@@ -55,23 +57,23 @@ switch d.mesh_type
 end
 
 %% RESISITIVITY
-d.num_regions           = dmin.num_regions;          % number of resistivity regions
+% d.num_regions           = d.num_regions;          % number of resistivity regions
 if d.num_regions == 0  % file, not working... instead set-up one value per grid cells, so num_regions is huge... 
-    d.file_name         =  dmin.filename;
-    d.rho_true            = dmin.rho_avg*ones(d.numnp_y-1,d.numnp_x-1);
-    d.rho_true(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = dmin.rho_true;
+    error('Using a input file is not yet implemented working')
+    d.rho_true            = d.rho_avg*ones(d.numnp_y-1,d.numnp_x-1);
+    d.rho_true(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho_true;
     writeMatrix2Resdat(d)                            % write the rho_true
-elseif d.num_regions >10                            % one value per grid cells in the inside grid plus a cst value for the buffer zone
-    d.rho_true            = nan(d.numnp_y-1,d.numnp_x-1);
-    d.rho_true(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = dmin.rho_true;
-    idx=1:((d.numnp_y-1)*(d.numnp_x-1));
-    d.elem_1 = [1                           idx(~isnan(d.rho_true(:)))];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(~isnan(d.rho_true(:)))];
-    d.value =  [dmin.rho_avg                d.rho_true(~isnan(d.rho_true(:)))'] ;
-else % for inversion, only one average value is given...
+elseif d.job_type == 0  % one value per grid cells in the inside grid plus a cst value for the buffer zone
+    d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
+    d.rho_numnp(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho;
+    idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.elem_1 = [1                           idx(~isnan(d.rho_numnp(:)))];
+    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(~isnan(d.rho_numnp(:)))];
+    d.value =  [d.rho_avg                d.rho_numnp(~isnan(d.rho_numnp(:)))'] ;
+elseif d.job_type == 1 % for inversion, only one average value is given...
     d.elem_1 = [1                          ];% 3461 3509 3557 3605 3653 3701 3749 3797];
     d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1)];% 3472 3520 3568 3616 3664 3712 3760 3808];
-    d.value =  [dmin.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
+    d.value =  [d.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
 end
 
 %% INVERSE SOLUTION
@@ -94,17 +96,17 @@ if d.job_type==1 % inverse solution
         d.reg_mode          = 0;   % Regularisation: 0-normal, 1-relative to starting resistivity or 2-relative to a previous dataset
         % using the �Differenceinversion� of LaBrecque and Yang (2000)
         
-        d.tolerance             = dmin.tolerance;      % desired misfit (usually 1.0)
-        d.max_iterations        = 10;        % maximum number of iteration
-        d.error_mod             = 2;        % 0 -preserve the data weights, 1 or 2-update the weights as the inversion progresses (error_mod=2 is recommended)
-        d.alpha_aniso           = 1;      % anisotropy of the smoothing factor: > 1 for smoother horizontal, alpha_aniso < 1 for smoother
+        d.tolerance             = d.tolerance;      % desired misfit (usually 1.0)
+        d.max_iterations        = 6;        % maximum number of iteration
+        d.error_mod             = 0;        % 0 -preserve the data weights, 1 or 2-update the weights as the inversion progresses (error_mod=2 is recommended)
+        d.alpha_aniso           = d.alpha_aniso;      % anisotropy of the smoothing factor: > 1 for smoother horizontal, alpha_aniso < 1 for smoother
         % vertical models, or alpha_aniso=1 for normal (isotropic) regularisation
         if d.reg_mode==1
             d.alpha_s           = NaN;   % regularisation to the starting model
         end
         
-        d.a_wgt                 = 0.000001;   % error variance with var(R) = (a_wgt*a_wgt) + (b_wgt*b_wgt) * (R*R)
-        d.b_wgt                 = 0.000001;   % where R is the resistance measured
+        d.a_wgt                 = d.a_wgt;   % error variance with var(R) = (a_wgt*a_wgt) + (b_wgt*b_wgt) * (R*R)
+        d.b_wgt                 = d.b_wgt;   % where R is the resistance measured
         if d.patch_size_x==0 && d.patch_size_y==0
             d.param_symbol
         end
@@ -113,7 +115,7 @@ if d.job_type==1 % inverse solution
         % or qual_ratio is 1 if the observed data in protocol.dat contains a ratio of two datasets
     end
     d.rho_min                   = 0;        % minimum observed apparent resistivity to be used
-    d.rho_max                   = 1000;     % maximum observed apparent resistivity to be used
+    d.rho_max                   = 5000;     % maximum observed apparent resistivity to be used
     
 end
 
@@ -137,7 +139,7 @@ end
 
 d.num_ind_meas                  = size(elec.data,1); 	% number of measurements to follow in file
 d.j_p                           = 1:d.num_ind_meas;   %
-d.elec                          = [elec.data(:,3:4) elec.data(:,2:-1:1)];   %
+d.elec                          = elec.data;
 if d.job_type == 1 % inverse solution
     d.v_i_ratio                 = NaN;   %
     d.v_i_ratio_0               = NaN;   %
@@ -152,8 +154,8 @@ createR2in(d)
 
 
 %% RUN .EXE
-if ~dmin.readonly
-    copyfile('R2/R2.exe',d.filepath);
+if ~d.readonly
+    copyfile('data_gen/R2/R2.exe',d.filepath);
     pwd_temp = pwd;
     cd(d.filepath); tic;
     if ismac
@@ -178,7 +180,7 @@ end
 %% OUPUT
 d.pseudo_x=elec.pseudo_x;
 d.pseudo_y=elec.pseudo_y;
-d.output=readOutput(d,grid_Rho);
+d.output=readOutput(d);
 end
 
 
