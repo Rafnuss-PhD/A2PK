@@ -9,7 +9,7 @@ gen.ymax = 20; %total hight in unit [m]
 
 % Scale define the subdivision of the grid (multigrid). At each scale, the
 % grid size is $(2^gen.sx+1) \times (2^gen.sy+1)$ 
-gen.nx = 800;
+gen.nx = 600;
 gen.ny = 40;
 
 % Generation Method: All method generate with FFTMA a gaussian field.
@@ -34,17 +34,17 @@ gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise
 % Electrical inversion
 gen.Rho.f ={};
 gen.Rho.f.res_matrix    = 0;
-gen.Rho.elec.spacing    = 8; % in grid spacing unit of the forward grid
+gen.Rho.elec.spacing    = 12; % in grid spacing unit of the forward grid
 gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
-gen.Rho.i.grid.nx       = 200;
-gen.Rho.i.grid.ny       = 20; % log-spaced grid.
+gen.Rho.i.grid.nx       = 300;
+gen.Rho.i.grid.ny       = 30; % log-spaced grid.
 gen.Rho.i.res_matrix    = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
 
 % Other parameter
-gen.plotit              = false;      % display graphic or not (you can still display later with |script_plot.m|)
+gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
 gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
-gen.name                = '800x40';
-gen.seed                = 123;
+gen.name                = '600x40';
+gen.seed                = 8;
 
 % Run the function
 data_generation(gen);
@@ -60,14 +60,20 @@ load('result-A2PK/GEN-800x40_2017-11-02_11-32'); %alpha = 27339.756;
 addpath('C:\Users\Raphael\Documents\MATLAB\Colormaps\Colormaps (5)\Colormaps\')
 colormap(viridis())
 
-[kern.prior,kern.axis_prim] = ksdensity(sigma_true(:));
-parm.nscore=1;
-Nscore = nscore(kern, parm, 0);
-Sec=Sigma; 
-Sec.d = reshape(Nscore.forward(Sec.d(:)) ,numel(Sec.y),numel(Sec.x));
-Prim.d = reshape(Nscore.forward(sigma_true(:)), grid_gen.ny, grid_gen.nx);
-Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
+% [kern.prior,kern.axis_prim] = ksdensity(sigma_true(:));
+% parm.nscore=1;
+% Nscore = nscore(kern, parm, 0);
+% Sec=Sigma; 
+% Sec.d = reshape(Nscore.forward(Sec.d(:)) ,numel(Sec.y),numel(Sec.x));
+% Prim.d = reshape(Nscore.forward(sigma_true(:)), grid_gen.ny, grid_gen.nx);
+% Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
 
+Nscore.forward = @(x) (log(x./43)/1.4-gen.mu)./gen.std;
+Nscore.inverse = @(x) 43.*exp(1.4*(x.*gen.std+gen.mu));
+Sec=Sigma; 
+Sec.d = Nscore.forward(Sigma.d);
+Prim.d = Nscore.forward(sigma_true);
+Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
 
 figure(10); clf;c_axis=[ min(Prim.d(:)) max(Prim.d(:)) ];
 subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('zt True field');
@@ -164,7 +170,7 @@ parfor ij=1:nx*ny
      W(ij,:) = CCa \ CCb(:,ij);
 end
 disp('W computed')
-save('result-A2PK/GEN-400x40_2017-10-30_17-53_cond','W','Prim_pt')
+% save('result-A2PK/GEN-800x40_2017-11-02_11-32_cond','W','Prim_pt','G','Nscore','Sec','Prim')
 
 zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
 %zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
@@ -176,7 +182,7 @@ view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); c
 
 
 
-parm.n_real = 500;
+parm.n_real = 30;
 
 rng('shuffle');
 zcs=nan(ny, nx,parm.n_real);
@@ -185,7 +191,7 @@ for i_real=1:parm.n_real
     zs = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
     zhs = W * [G * zs(:) ; zs(Prim_pt.id)];
     r = zh(:) + (zs(:) - zhs(:));
-    zcs(:,:,i_real) = reshape( (r-mean(r))./std(r), ny, nx);
+    zcs(:,:,i_real) = reshape( r, ny, nx);
     z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
 end
 
@@ -216,44 +222,72 @@ h3=plot(Prim.x,1-covar.g(Prim.x*covar.cx(1)),'--k','linewidth',2);
 xlim([0 70]); xlabel('Lag-distance h ');ylabel('Variogram \gamma(h)')
 legend([h1 h2 h3],'500 realizations','True field','Theorical Model')
 
+figure(12);clf; hold on; colormap(viridis())
+for i_real=1:parm.n_real
+    r=zcs(:,:,i_real);
+    [f,xi] = ksdensity(r(:));
+    h1=plot(xi,f,'b','color',[.5 .5 .5]);
+end
+[f,xi] = ksdensity(Prim.d(:));
+h4=plot(xi,f,'-r','linewidth',2);
+[f,xi] = ksdensity(Prim_pt.d(:));
+h2=plot(xi,f,'-g','linewidth',2);
+h3=plot(xi,normpdf(xi),'--k','linewidth',2);
+xlabel('Lag-distance h ');ylabel('Variogram \gamma(h)')
+legend([h1 h2 h3 h4],'500 realizations','True field','Theorical Model','Sampled value (well)')
 
+figure;
+ mean(Nscore.inverse(zcs),3)-sigma_true
 
 %% Forward simulation
+addpath data_gen/R2
 
-for i_real=1:parm.n_real
-    z1=zcs(:,:,i_real);
-    s1 = reshape(Nscore.inverse(z1(:)) ,numel(Prim.y),numel(Prim.x));
-    
+fsim_pseudo=nan(numel(gen.Rho.f.output.pseudo),parm.n_real);
+fsim_resistance=nan(numel(gen.Rho.f.output.resistance),parm.n_real);
 
-f = gen.Rho.f;
-f.res_matrix = gen.Rho.f.res_matrix;
-f.grid.x            = gen.Rho.f.x;
-f.grid.y            = gen.Rho.f.y;
-f.grid.x_n          = gen.Rho.f.x_n;
-f.grid.y_n          = gen.Rho.f.y_n;
+rho = 1000./Nscore.inverse(zcs);
 
-
-% Forward
-f.header            = 'Forward';  % title of up to 80 characters
-f.job_type          = 0;
-f.filepath          = filepath;
-f.readonly          = 0;
-f.alpha_aniso       = gen.covar.range0(2)/gen.covar.range0(1);
-
-% Rho value
-% f                  = griddedInterpolant({grid.y,grid.x},rho_true,'nearest','nearest');
-f.rho               = rho_true; % f({grid_Rho.y,grid_Rho.x});
-% f.dmin.filename       = 'gtrue.dat';
-f.num_regions       = 1+numel(f.rho);
-f.rho_min           = min(rho_true(:));
-f.rho_avg           = mean(rho_true(:));
-f.rho_max           = max(rho_true(:))*2;
-f                   = Matlat2R2(f,gen.Rho.elec); % write file and run forward modeling
+parfor i_real=1:parm.n_real
 
     
+    f={};
+    f.res_matrix        = gen.Rho.f.res_matrix;
+    f.grid            = gen.Rho.f.grid;    
     
+    % Forward
+    f.header            = 'Forward';  % title of up to 80 characters
+    f.job_type          = 0;
+    f.filepath          = ['data_gen/data/IO-file-' num2str(i_real) '/'];
+    f.readonly          = 0;
+    f.alpha_aniso       = gen.Rho.f.alpha_aniso;
     
+    f.rho               = rho(:,:,i_real);
+    f.num_regions       = gen.Rho.f.num_regions;
+    f.rho_min           = gen.Rho.f.rho_min;
+    f.rho_avg           = gen.Rho.f.rho_avg;
+    f.rho_max           = gen.Rho.f.rho_max;
     
-    Matlat2R2(gen.Rho.grid, dmin, gen.Rho.elec);
+    mkdir(f.filepath)
+    f                   = Matlat2R2(f,gen.Rho.elec); % write file and run forward modeling
+    fsim_pseudo(:,i_real) = f.output.pseudo;
+    fsim_resistance(:,i_real) = f.output.resistance;
 end
 
+  figure(21);
+    subplot(2,1,1); imagesc(1000./sigma_true)
+    subplot(2,1,2); imagesc(rho)
+    
+   
+    mean(fsim_pseudo,2)
+    
+    figure(22); c_axis=[150 500]; clf;
+    subplot(3,1,1); scatter(gen.Rho.f.pseudo_x,gen.Rho.f.pseudo_y,[],gen.Rho.f.output.pseudo,'filled');set(gca,'Ydir','reverse');caxis(c_axis); title('Pseudo section observed from true field'); axis tight;
+    subplot(3,1,2); scatter(gen.Rho.f.pseudo_x,gen.Rho.f.pseudo_y,[],mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse');caxis(c_axis);title('Mean pseudo section observed from simulated fields'); colorbar; axis tight;
+    subplot(3,1,3); scatter(gen.Rho.f.pseudo_x,gen.Rho.f.pseudo_y,[],mean(fsim_pseudo,2)-gen.Rho.f.output.pseudo,'filled');set(gca,'Ydir','reverse');title('Difference of the two above'); colorbar; axis tight;
+    
+    figure(23); clf; hold on; plot([100 600],[100 600]); axis equal tight;
+    scatter(mean(fsim_pseudo,2),gen.Rho.f.output.pseudo,[],gen.Rho.f.pseudo_y,'filled');
+   xlabel('Mean resistance measured from simulated fields');
+   ylabel('Resistance measured from true fields');
+   
+   save('result-A2PK/GEN-800x40_2017-11-02_11-32_30sim','zcs','fsim_pseudo','fsim_resistance')
