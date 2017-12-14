@@ -28,7 +28,7 @@ gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
 gen.covar               = kriginginitiaite(gen.covar);
 gen.mu                  = -1.579;%0.27; % parameter of the first field. 
-gen.std                 = sqrt(0.22361);%.05;
+gen.std                 = 0.22361;%.05;
 gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise', 'RESINV3D'
 
 % Electrical inversion

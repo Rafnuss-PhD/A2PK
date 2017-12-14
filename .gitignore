@@ -1,4 +1,4 @@
-data_gen/data/*
+ERT/data_gen/data/*
 *.asv
 /result-*/
 
