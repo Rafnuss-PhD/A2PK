@@ -28,7 +28,7 @@ gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
 gen.covar               = kriginginitiaite(gen.covar);
 gen.mu                  = -1.579;%0.27; % parameter of the first field. 
-gen.std                 = 0.22361;%.05;
+gen.std                 = sqrt(0.22361);%.05;
 gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise', 'RESINV3D'
 
 % Electrical inversion
@@ -47,17 +47,19 @@ gen.name                = '600x40';
 gen.seed                = 8;
 
 % Run the function
+cd('ERT')
 data_generation(gen);
+cd('..')
 %[fieldname, grid_gen, K_true, phi_true, sigma_true, K, sigma, Sigma, gen] = data_generation(gen);
 
 
 %%
 clear all; addpath(genpath('./.')); dbstop if error 
-load('result-A2PK/GEN-800x40_2017-11-02_11-32'); %alpha = 27339.756;
+load('ERT/result/GEN-600x40_2017-12-14_14-59'); %alpha = 27339.756;
 
 %addpath('C:\Users\Raphael\Documents\MATLAB\ColorBrewer_ Attractive and Distinctive Colormaps\DrosteEffect-BrewerMap-aee8a46\')
 %colormap(brewermap([],'YlOrBr'))
-addpath('C:\Users\Raphael\Documents\MATLAB\Colormaps\Colormaps (5)\Colormaps\')
+addpath('C:\Users\rafnu\Documents\MATLAB\Colormaps\')
 colormap(viridis())
 
 % [kern.prior,kern.axis_prim] = ksdensity(sigma_true(:));
@@ -100,7 +102,7 @@ end
 
 i=[1838 4525 8502]; th=.05; x_lim=[16 25; 35 65; 90 99]; y_lim=[-.12 7; -.12 19.57; -.12 8];
 figure(1); clf; colormap(viridis())
-subplot(2,numel(i),[1 numel(i)]);hold on; surface(Sec.X,Sec.Y,reshape(log(diag(Sigma.res)),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  scatter3(Sec.X(i),Sec.Y(i),100*ones(numel(i),1),'sr','filled')
+subplot(2,numel(i),[1 numel(i)]);hold on; surface(Sec.X,Sec.Y,reshape(diag(Sigma.res),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  scatter3(Sec.X(i),Sec.Y(i),100*ones(numel(i),1),'sr','filled')
 for ii=1:numel(i)
     rectangle('Position',[x_lim(ii,1) y_lim(ii,1) range(x_lim(ii,:)) range(y_lim(ii,:))],'EdgeColor','r','linewidth',1)
 end
@@ -159,8 +161,8 @@ disp('Cd computed')
 
 
 Cd2 = Cd+Cmt;
-Czh = covar.g(squareform(pdist([Prim_pt.x(:) Prim_pt.y(:)]*covar.cx)));% Czh =covar.g(0);
-Czzh = covar.g(pdist2([X Y]*covar.cx,[Prim_pt.x(:) Prim_pt.y(:)]*covar.cx));
+Czh = Cz(Prim_pt.id,Prim_pt.id);
+Czzh = Cz(Prim_pt.id,:);
 Czhd = Czd( Prim_pt.id ,:);
 
 CCa = [ Cd2 Czhd' ; Czhd Czh ];
@@ -173,7 +175,7 @@ parfor ij=1:nx*ny
      W(ij,:) = CCa \ CCb(:,ij);
 end
 disp('W computed')
-% save('result-A2PK/GEN-800x40_2017-11-02_11-32_cond','W','Prim_pt','G','Nscore','Sec','Prim')
+save('ERT/result/GEN-600x40_2017-12-14_14-59_cond2','W','Prim_pt','G','Nscore','Sec','Prim')
 
 zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
 %zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
@@ -252,7 +254,7 @@ figure;
  mean(Nscore.inverse(zcs),3)-sigma_true;
 
 %% Forward simulation
-addpath data_gen/R2
+addpath ERT/data_gen/R2
 
 fsim_pseudo=nan(numel(gen.Rho.f.output.pseudo),parm.n_real);
 fsim_resistance=nan(numel(gen.Rho.f.output.resistance),parm.n_real);
@@ -269,7 +271,7 @@ parfor i_real=1:parm.n_real
     % Forward
     f.header            = 'Forward';  % title of up to 80 characters
     f.job_type          = 0;
-    f.filepath          = ['data_gen/data/IO-file-' num2str(i_real) '/'];
+    f.filepath          = ['ERT/data_gen/data/IO-file-' num2str(i_real) '/'];
     f.readonly          = 0;
     f.alpha_aniso       = gen.Rho.f.alpha_aniso;
     

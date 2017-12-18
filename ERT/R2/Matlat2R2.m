@@ -38,9 +38,10 @@ switch d.mesh_type
     case 3 % Trigular Mesh
         d.scale         = NaN;                          % scaling factor for the mesh co-ordinates.
     case 4
-        n_plus          = 6;                           % number of buffer cells
-        x_plus          = logspace(log10(x(end)-x(end-1)), log10(4*(x(end)-x(1))), n_plus); % generate n_plus value logspaced between the dx and 3 times the range of x value
-        y_plus          = logspace(log10(y(end)-y(end-1)), log10(20*(y(end)-y(1))), n_plus);
+        n_plus          = 10;                           % number of buffer cells
+        x_plus          = logspace(log10(x(end)-x(end-1)), log10(10*(x(end)-x(1))), n_plus); % generate n_plus value logspaced between the dx and 3 times the range of x value
+        y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(x(end)-x(1))), n_plus);
+        % x_plus          = (x(2)-x(1)).* 1.3.^(1:n_plus);
         d.xx            = sort([x(1)-x_plus x x(end)+x_plus]);             % array containing x coordinates of each of numnp_x node columns
         d.yy            = sort([y y(end)+y_plus]);      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
         % Set yy(1) to zero and the other values to a positive number
