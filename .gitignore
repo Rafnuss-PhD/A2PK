@@ -1,6 +1,7 @@
 ERT/data_gen/data/*
 *.asv
 /result-*/
+*.mat
 
 # Windows image file caches
 Thumbs.db
