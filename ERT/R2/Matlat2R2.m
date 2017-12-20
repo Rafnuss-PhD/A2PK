@@ -126,18 +126,16 @@ d.x_poly                        = [x(1) x(end) x(end) x(1)   x(1)];   % co-ordin
 d.y_poly                        = -[y(1) y(1)   y(end) y(end) y(1)];
 
 %% ELECTRODE
-spacing                         = elec.spacing; % in termes of grid size
 d.num_electrodes                = elec.n;   % Number of electrodes
 d.j_e                           = 1:d.num_electrodes;   % electrode number
 if d.job_type==1 && d.inverse_type==3
     d.node      = NaN;                   % node number in the finite element mesh
 else
-    d.column    = (1+n_plus):spacing:(d.numnp_x-n_plus);   % column index for the node the finite element mesh
+    d.column    = n_plus+d.elec_id;   % column index for the node the finite element mesh
     d.row       = ones(1,d.num_electrodes);                   % row index for the node in the finite element mesh
 end
 
 %% PROTOCOL
-
 d.num_ind_meas                  = size(elec.data,1); 	% number of measurements to follow in file
 d.j_p                           = 1:d.num_ind_meas;   %
 d.elec                          = elec.data;
@@ -156,7 +154,7 @@ createR2in(d)
 
 %% RUN .EXE
 if ~d.readonly
-    copyfile('data_gen/R2/R2.exe',d.filepath);
+    copyfile('R2/R2.exe',d.filepath);
     pwd_temp = pwd;
     cd(d.filepath); tic;
     if ismac
