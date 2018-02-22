@@ -187,7 +187,7 @@ i.grid.x_n          = f.grid.x_n(1:f.elec_spacing/i.elec_spacing:end);
 i.grid.x            = i.grid.x_n(1:end-1)+diff(i.grid.x_n)/2;
 i.grid.y_n          = logspace(log10(f.grid.y_n(1)+5),log10(f.grid.y_n(end)+5),i.grid.ny+1)-5; % cell center
 i.grid.y            = i.grid.y_n(1:end-1)+diff(i.grid.y_n)/2;
-i.elec_id           = find(sum(bsxfun(@eq,i.grid.x_n',elec.x),2));
+i.elec_id           = find(sum(bsxfun(@eq,i.grid.x_n',elec.x),2))';
 
 % Forward
 f.header            = 'Forward';  % title of up to 80 characters
