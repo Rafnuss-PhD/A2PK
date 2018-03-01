@@ -6,11 +6,14 @@ This MATLAS package allows you to generate stocastic Gaussin simulation at a fin
 - [``A2PK Conditional Gaussian``](https://raphael-nussbaumer-phd.github.io/A2PK/LiveScript/A2PK_cond_gaussian) expend the previous Live Script with the conditional case
 - [``A2PK.m``](./A2PK.m) is the matlab function file which can be used for any application.
 
-## Mathematical Derivation
 
+## Application to Eletrical Resistivity Tomography (ERT)
+Refers to [the ERT folder](https://github.com/Raphael-Nussbaumer-PhD/A2PK/tree/master/ERT), and more precisely to [the script used to generate the dataset and the result](https://github.com/Raphael-Nussbaumer-PhD/A2PK/blob/master/ERT/script_elec_cond.m). I'll try to make an html page of this code soon. 
+This work has been submitting for publication. 
 
-## Application to ERT
-
+## Application to Hydraulic tomography (HT)
+Refers to [the HT folder](https://github.com/Raphael-Nussbaumer-PhD/A2PK/tree/master/HT), and more precisely to [the script used to generate the dataset and the result](https://github.com/Raphael-Nussbaumer-PhD/A2PK/blob/master/HT/script_elec_cond.m). I'll try to make an html page of this code soon. 
+This is an ongoing research.
 
 ## Reference
 Some useful readings
