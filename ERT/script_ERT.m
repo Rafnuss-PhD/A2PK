@@ -1,6 +1,10 @@
-%% Creation of the Synthetic Dat
-% This section gather all possible way to create the data. |gen| struct
-% store the parameter and |data_generation.m| compute everything
+%% Script to use A2PK with ERT
+% This script will generate the dataset and the result for the paper ... 
+
+
+%% 1. Creation of the Synthetic Data
+% This section creates the data. |gen| struct store the parameter and
+% |data_generation.m| compute everything
 
 clc; clear all; addpath('../functions','R2'); dbstop if error 
 
@@ -35,8 +39,7 @@ gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise
 % Electrical inversion
 gen.Rho.f ={};
 gen.Rho.f.res_matrix    = 0;
-g
-en.Rho.elec.spacing    = 2; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.spacing    = 2; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.bufzone    = 2; % number of electrod to skip 
 gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
 gen.Rho.i.grid.nx       = 200; % | adapted to fit the fine grid
@@ -49,16 +52,17 @@ gen.saveit              = true;       % save the generated file or not, this wil
 gen.name                = '600x40';
 gen.seed                = 8;
 
-% Run the function
-fieldname = data_generation(gen);
-%[fieldname, grid_gen, K_true, phi_true, sigma_true, K, sigma, Sigma, gen] = data_generation(gen);
+% Run the function. 
+% fieldname = data_generation(gen);
+% [fieldname, grid_gen, K_true, phi_true, sigma_true, K, sigma, Sigma, gen] = data_generation(gen);
+fieldname = 'GEN-600x40_2017-12-21_15-44';
 
 
-%% Area-to-point Kriging
+%% 2. Area-to-point Kriging
 % This section load the synthetic data create the covariance matrices and
 % compute the kriging weight to finally produce the Kriging map
 
-clear all; addpath(genpath('./.')); dbstop if error 
+addpath(genpath('./.'));
 load(['ERT/result/' fieldname]);
 
 % Add some nice colormap
@@ -95,8 +99,6 @@ subplot(2,1,2); surface(Sigma.x, Sigma.y, log10(Sigma.d),'EdgeColor','none','fac
 caxis(c_axis_n); title('Inverted Electrical Conductivity U \sigma^{est}'); axis equal tight; box on; xlabel('x');ylabel('y');set(gca,'Ydir','reverse'); colorbar('southoutside')
 colormap(viridis())
 % export_fig -eps 'Prim_and_sec_log'
-
-
 
 % Built the matrix G which link the true variable Prim.d to the measured coarse scale d
 G = zeros(numel(Sec.d), numel(Prim.d));
@@ -135,18 +137,15 @@ figure(4); clf; colormap(viridis())
 subplot(3,1,1);surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse'); caxis([-3 3]); axis equal tight; box on; xlabel('x');ylabel('y'); title('Inverted Electrical Conductivity \Sigma^{est}')
 subplot(3,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  caxis([-3 3]);axis equal tight; box on; xlabel('x');ylabel('y'); colorbar('southoutside'); title('G-transform of the True Electrical Conductivity Gz^{true}')
 subplot(3,1,3);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y'); colorbar('southoutside'); title('Error')
-export_fig -eps 'SecvsTestSecD'
-
+% export_fig -eps 'SecvsTestSecD'
 
 
 % Generate a sampling
 Prim_pt = sampling_pt(Prim,Prim.d,1,1);
 
-
 % Compute the covariance of the data error
 Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
 Cmt=(eye(size(Sigma.res))-Sigma.res)*Cm;
-
 
 % Compute the covariance of the spatial model
 covar = kriginginitiaite(gen.covar);
@@ -154,7 +153,6 @@ Cz = covar.g(squareform(pdist([Prim.X Prim.Y]*covar.cx)));
 Cz=sparse(Cz);
 Czd = Cz * G';
 Cd = G * Czd;
-
 
 % Combine both covariance an built the Kriging System
 Cd2 = Cd+Cmt;
@@ -170,16 +168,17 @@ W=zeros(nx*ny,numel(Sec.d(:))+Prim_pt.n);
 parfor ij=1:nx*ny
      W(ij,:) = CCa \ CCb(:,ij);
 end
-% save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
+save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
+load(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
 
 % Compute the Kriging map
 zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
-%zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
+zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
 
 figure(5); clf;   colormap(viridis())
 surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
 view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate')
-export_fig -eps 'Krig'
+% export_fig -eps 'Krig'
 
 
 %% Simulation of the Area-to-point Kriging 
@@ -205,7 +204,7 @@ subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'
 subplot(4,1,2);surf(Prim.x, Prim.y, zcs(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Prim.x, Prim.y, mean(zcs,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,4);surf(Prim.x, Prim.y, std(zcs,[],3),'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
-export_fig -eps 'PrimOverview'
+% export_fig -eps 'PrimOverview'
 
 figure(7);clf; colormap(viridis())
 c_axis=[ -3 3];
@@ -213,12 +212,12 @@ subplot(4,1,1);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); 
 subplot(4,1,2);surf(Sec.x, Sec.y, z(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');
 subplot(4,1,4);surf(Sec.x, Sec.y, std(z,[],3),'EdgeColor','none','facecolor','flat');  title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
-export_fig -eps 'SecOverview'
+% export_fig -eps 'SecOverview'
 
 figure(8);clf;colormap(viridis())
 subplot(2,1,1);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y'); caxis([-.6 .6]);colorbar('southoutside');
 subplot(2,1,2);surf(Sec.x, Sec.y, mean(z,3)-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar('southoutside');caxis([-.6 .6])
-export_fig -eps 'GztrueGzsim'
+% export_fig -eps 'GztrueGzsim'
 
 % Compute the Variogram and Histogram of realiaztions
 parm.n_real=500;
@@ -244,7 +243,7 @@ h2=plot(Prim.y,vario_prim_y,'-r','linewidth',2);
 h3=plot(Prim.y,1-covar.g(Prim.y*covar.cx(4)),'--k','linewidth',2);
 xlim([0 6]); xlabel('Lag-distance h_y ');ylabel('Variogram \gamma(h_y)')
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
-export_fig -eps 'Vario'
+% export_fig -eps 'Vario'
 
 
 figure(10);clf; hold on; colormap(viridis())

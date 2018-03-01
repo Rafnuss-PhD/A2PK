@@ -98,7 +98,7 @@ if d.job_type==1 % inverse solution
         % using the �Differenceinversion� of LaBrecque and Yang (2000)
         
         d.tolerance             = d.tolerance;      % desired misfit (usually 1.0)
-        d.max_iterations        = 10;        % maximum number of iteration
+        d.max_iterations        = 1;        % maximum number of iteration
         d.error_mod             = 0;        % 0 -preserve the data weights, 1 or 2-update the weights as the inversion progresses (error_mod=2 is recommended)
         d.alpha_aniso           = d.alpha_aniso;      % anisotropy of the smoothing factor: > 1 for smoother horizontal, alpha_aniso < 1 for smoother
         % vertical models, or alpha_aniso=1 for normal (isotropic) regularisation
