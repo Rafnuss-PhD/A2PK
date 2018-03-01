@@ -1,4 +1,4 @@
-function [filename, grid_gen, K_true, K, Sigma, gen] = data_generation(gen)
+function [filename, grid_gen, K_true, K, gen] = data_generation(gen)
 % DATA_GENERATION is basically creating all the data required for a simulation.
 % INPUT:
 % GRID
@@ -70,35 +70,42 @@ grid_gen.xy=1:grid_gen.nxy;
 [grid_gen.X, grid_gen.Y] = meshgrid(grid_gen.x,grid_gen.y); % matrix coordinate
 
 
+
+
 %% * 3. *Generate field*
-K_true    = exp(gen.mu + gen.std*fftma_perso(gen.covar, grid_gen));
+f_Heinz         = @(phi,a,b) 10.^(a *phi - b);
+
+phi_true        = gen.mu + gen.std*fftma_perso(gen.covar, grid_gen);
+K_true          = f_Heinz(phi_true,6.66,4.97);
+R_true          = 1./K_true;
+
 
 %% Sampling
-K = sampling_pt(grid_gen,K_true,gen.samp,gen.samp_n);
+% K = sampling_pt(grid_gen,K_true,gen.samp,gen.samp_n);
 
 % Plot
-if gen.plotit
-    K_true_t = (log(K_true) - mean(log(K_true(:)))) ./ std(log(K_true(:)));
-    K_dt = (log(K.d) - mean(log(K_true(:)))) ./ std(log(K_true(:)));
-    
-    
-    figure(1);clf; subplot(2,1,1); hold on;axis equal; title('Electrical Conductivity [mS/m]');xlabel('x [m]'); ylabel('y [m]')
-    imagesc(grid_gen.x,grid_gen.y,K_true_t);colorbar;  scatter(K.x,K.y,K.d); legend({'Sampled location'})
-    subplot(2,1,2); hold on; title('Histogram'); xlabel('Electrical Conductivity [mS/m]');
-    ksdensity(K_true_t(:)); ksdensity(K_dt(:)); legend({'True','Sampled'})
-    
-    [gamma_x, gamma_y] = variogram_gridded_perso(K_true_t);
-    figure(2); clf; subplot(2,1,1); hold on; title('Horizontal (x) Variogram')
-    plot(grid_gen.x(1:end/2),gamma_x(1:end/2)./std(K_true_t(:))^2);
-    % plot([gen.covar.modele(1,2) gen.covar.modele(1,2)],[0 1])
-    plot(grid_gen.x(1:end/2),1-gen.covar.g(grid_gen.x(1:end/2)/gen.covar.range(2)),'linewidth',2)
-    subplot(2,1,2); hold on; title('Vertical (y) Variogram')
-    plot(grid_gen.y(1:end/2),gamma_y(1:end/2)./std(K_true_t(:))^2);
-    % plot([gen.covar.modele(1,3) gen.covar.modele(1,3)],[0 1])
-    plot(grid_gen.y(1:end/2),1-gen.covar.g(grid_gen.y(1:end/2)/gen.covar.range(1)),'linewidth',2)
-    
-    keyboard;close all; % try different initial data if wanted
-end
+% if gen.plotit
+%     K_true_t = (log(K_true) - mean(log(K_true(:)))) ./ std(log(K_true(:)));
+%     K_dt = (log(K.d) - mean(log(K_true(:)))) ./ std(log(K_true(:)));
+%     
+%     
+%     figure(1);clf; subplot(2,1,1); hold on;axis equal; title('Electrical Conductivity [mS/m]');xlabel('x [m]'); ylabel('y [m]')
+%     imagesc(grid_gen.x,grid_gen.y,K_true_t);colorbar;  scatter(K.x,K.y,K.d); legend({'Sampled location'})
+%     subplot(2,1,2); hold on; title('Histogram'); xlabel('Electrical Conductivity [mS/m]');
+%     ksdensity(K_true_t(:)); ksdensity(K_dt(:)); legend({'True','Sampled'})
+%     
+%     [gamma_x, gamma_y] = variogram_gridded_perso(K_true_t);
+%     figure(2); clf; subplot(2,1,1); hold on; title('Horizontal (x) Variogram')
+%     plot(grid_gen.x(1:end/2),gamma_x(1:end/2)./std(K_true_t(:))^2);
+%     % plot([gen.covar.modele(1,2) gen.covar.modele(1,2)],[0 1])
+%     plot(grid_gen.x(1:end/2),1-gen.covar.g(grid_gen.x(1:end/2)/gen.covar.range(2)),'linewidth',2)
+%     subplot(2,1,2); hold on; title('Vertical (y) Variogram')
+%     plot(grid_gen.y(1:end/2),gamma_y(1:end/2)./std(K_true_t(:))^2);
+%     % plot([gen.covar.modele(1,3) gen.covar.modele(1,3)],[0 1])
+%     plot(grid_gen.y(1:end/2),1-gen.covar.g(grid_gen.y(1:end/2)/gen.covar.range(1)),'linewidth',2)
+%     
+%     keyboard;close all; % try different initial data if wanted
+% end
 
 %%
 filepath       = 'data_gen/IO-file/';
@@ -122,21 +129,30 @@ elec.y              = f.grid.y_n(f.elec_y_id);
 [~,f.elec_x_t_id]   = min(abs(bsxfun(@minus,f.grid.x_n,elec.x_t(:))),[],2);
 [~,f.elec_x_r_id]   = min(abs(bsxfun(@minus,f.grid.x_n,elec.x_r(:))),[],2);
 elec.x_t            = f.grid.x_n(f.elec_x_t_id);
-elec.x_r            = f.grid.x_n(f.elec_x_r_id);
-elec.n              = numel(elec.x);
+elec.x_r            = f.grid.x_n(f.elec_x_r_id)';
+[elec.X, elec.Y] = meshgrid([elec.x_t; elec.x_r],elec.y);
+[f.elec_X_id, f.elec_Y_id] = meshgrid([f.elec_x_t_id; f.elec_x_r_id],f.elec_y_id);
 
 % elec.config_max   = 3000;
-elec.method         = 'pole-pole';
-elec.
+elec.n              = (numel(f.elec_x_t_id)+numel(f.elec_x_r_id))*numel(f.elec_y_id);
+elec                = config_elec(elec);
+
+
 
 % Inverse Grid
-i = gen.Rho.i;
-i.elec_spacing      = floor(i.grid.nx/(elec.n+2*elec.bufzone-1));
-i.grid.x_n          = f.grid.x_n(1:f.elec_spacing/i.elec_spacing:end);
+i                   = gen.Rho.i;
+i.grid.x_n          = f.grid.x_n(1: floor(numel(f.grid.x_n)/(i.grid.nx+1)) :end);
+i.grid.y_n          = f.grid.y_n(1: floor(numel(f.grid.y_n)/(i.grid.ny+1)) :end); % cell center
+assert(all(ismember(elec.x_t,i.grid.x_n )) & all(ismember(elec.x_r,i.grid.x_n )),'The grid of the inverse is not possible because the electrode have not corresponding position.')
+assert(all(ismember(elec.y,i.grid.y_n )) ,'The grid of the inverse is not possible because the electrode have no corresponding position.')
 i.grid.x            = i.grid.x_n(1:end-1)+diff(i.grid.x_n)/2;
-i.grid.y_n          = logspace(log10(f.grid.y_n(1)+5),log10(f.grid.y_n(end)+5),i.grid.ny+1)-5; % cell center
 i.grid.y            = i.grid.y_n(1:end-1)+diff(i.grid.y_n)/2;
-i.elec_id           = find(sum(bsxfun(@eq,i.grid.x_n',elec.x),2))';
+
+i.elec_y_id         = find(sum(bsxfun(@eq,i.grid.y_n',elec.y),2))';
+i.elec_x_t_id       = find(sum(bsxfun(@eq,i.grid.x_n',elec.x_t),2));
+i.elec_x_r_id       = find(sum(bsxfun(@eq,i.grid.x_n',elec.x_r'),2));
+
+[i.elec_X_id, i.elec_Y_id] = meshgrid([i.elec_x_t_id; i.elec_x_r_id],i.elec_y_id);
 
 % Forward
 f.header            = 'Forward';  % title of up to 80 characters
@@ -147,32 +163,41 @@ f.alpha_aniso       = gen.covar.range0(2)/gen.covar.range0(1);
 
 % Rho value
 % f                  = griddedInterpolant({grid.y,grid.x},rho_true,'nearest','nearest');
-f.rho               = K_true; % f({grid_Rho.y,grid_Rho.x});
+f.rho               = R_true; % f({grid_Rho.y,grid_Rho.x});
 % f.filename       = 'gtrue.dat';
-f.num_regions       = 1+numel(f.rho);
-f.rho_min           = min(K_true(:));
-f.rho_avg           = mean(K_true(:));
-f.rho_max           = max(K_true(:))*2;
+f.rho_min           = min(R_true(:));
+f.rho_avg           = mean(R_true(:));
+f.rho_max           = max(R_true(:))*2;
+f.rho_bot           = mean(R_true(:))*10e10;
 f                   = Matlat2R2(f,elec); % write file and run forward modeling
+
+
+if 0 && gen.saveit
+    gen.Rho.f  = f;
+    gen.Rho.elec        = elec;
+    filename = ['data_gen/data/FOR-', gen.name ,'_', datestr(now,'yyyy-mm-dd_HH-MM'), '.mat'];
+    save(filename, 'K_true', 'grid_gen', 'gen') %'sigma',
+end
 
 % Add some error to the observation
 i.a_wgt = 0;%0.01;
-i.b_wgt = 0.02;
+i.b_wgt = 0.01;
 % var(R) = (a_wgt*a_wgt) + (b_wgt*b_wgt) * (R*R)
 f.output.resistancewitherror = i.a_wgt.*randn(numel(f.output.resistance),1) + (1+i.b_wgt*randn(numel(f.output.resistance),1)).*f.output.resistance;
 %f.output.resistancewitherror(f.output.resistancewitherror>0) = -f.output.resistancewitherror(f.output.resistancewitherror>0);
 %f.output.resistancewitherror(f.output.resistancewitherror<-10) = -10;
 
-fid = fopen([f.filepath 'R2_forward.dat'],'r');
-A = textscan(fid,'%f %f %f %f %f %f %f');fclose(fid);
-A{end-1}(2:end) = f.output.resistancewitherror;
-fid=fopen([f.filepath 'R2_forward.dat'],'w');
-A2=[A{:}];
-fprintf(fid,'%d\n',A2(1,1));
-for u=2:size(A2,1)
-    fprintf(fid,'%d %d %d %d %d %f %f\n',A2(u,:));
-end
-fclose(fid);
+
+% fid = fopen([f.filepath 'R2_forward.dat'],'r');
+% A = textscan(fid,'%f %f %f %f %f %f %f');fclose(fid);
+% A{end-1}(2:end) = f.output.resistancewitherror;
+% fid=fopen([f.filepath 'R2_forward.dat'],'w');
+% A2=[A{:}];
+% fprintf(fid,'%d\n',A2(1,1));
+% for u=2:size(A2,1)
+%     fprintf(fid,'%d %d %d %d %d %f %f\n',A2(u,:));
+% end
+% fclose(fid);
 
 
 if 0==1
@@ -185,7 +210,8 @@ if 0==1
     scatter(X(:),Y(:),'b')
     [X,Y] = meshgrid(i.grid.x,i.grid.y);
     scatter(X(:),Y(:),'r')
-    plot(elec.x,f.grid.y_n(1),'xk')
+    scatter(f.grid.x_n(f.elec_X_id(:)),f.grid.y_n(f.elec_Y_id(:)),'xb')
+    scatter(i.grid.x_n(i.elec_X_id(:)),i.grid.y_n(i.elec_Y_id(:)),'xr')
     view(2); axis tight; set(gca,'Ydir','reverse');
 end
 
@@ -199,28 +225,29 @@ i.alpha_aniso       = f.alpha_aniso;
 i.num_regions       = 1;
 i.tolerance         = 1;
 i.rho_avg           = f.rho_avg;
+i.rho_bot           = f.rho_bot;
 i                   = Matlat2R2(i,elec);
 
 %% Ouput Sigma
-Sigma.d             = 1000./flipud(i.output.res);
+K.d             = 1./flipud(i.output.res);
 
 if i.res_matrix ==  1 && any(~isnan(i.output.sen(:)))
-    Sigma.sen       = 1000./flipud(i.output.sen);
+    K.sen       = 1./flipud(i.output.sen);
 elseif i.res_matrix ==  2 && any(~isnan(i.output.rad(:)))
-    Sigma.rad       = flipud(i.output.rad);
+    K.rad       = flipud(i.output.rad);
 elseif i.res_matrix ==  3 && any(~isnan(i.output.Res(:)))
 
-    Sigma.res=i.output.Res;
-    Sigma.res(~i.output.inside,:)=[]; Sigma.res(:,~i.output.inside(:))=[];
-    Sigma.res_out=i.output.Res;
-    Sigma.res_out(~i.output.inside,:)=[]; Sigma.res_out(:,i.output.inside(:))=[];
-    Sigma.res_out = sum(Sigma.res_out,2);
+    K.res=i.output.Res;
+    K.res(~i.output.inside,:)=[]; K.res(:,~i.output.inside(:))=[];
+    K.res_out=i.output.Res;
+    K.res_out(~i.output.inside,:)=[]; K.res_out(:,i.output.inside(:))=[];
+    K.res_out = sum(K.res_out,2);
     
 end
 rmpath data_gen/R2
-Sigma.x = i.grid.x;
-Sigma.y = i.grid.y;
-[Sigma.X,Sigma.Y] = meshgrid(Sigma.x, Sigma.y);
+K.x = i.grid.x;
+K.y = i.grid.y;
+[K.X,K.Y] = meshgrid(K.x, K.y);
 
 gen.Rho.i           = i;
 gen.Rho.f           = f;
@@ -230,7 +257,7 @@ gen.Rho.elec        = elec;
 
 if gen.saveit
     filename = ['data_gen/data/GEN-', gen.name ,'_', datestr(now,'yyyy-mm-dd_HH-MM'), '.mat'];
-    save(filename, 'phi_true', 'sigma_true', 'Sigma','grid_gen', 'gen') %'sigma',
+    save(filename, 'K_true','K','grid_gen', 'gen') %'sigma',
 end
 
 fprintf('  ->  finish in %g sec\n', toc)

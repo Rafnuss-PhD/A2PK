@@ -22,7 +22,7 @@ function d = Matlat2R2(d,elec)
 
 % x and y need to be node (intersection of cells) and not cell centered
 x = d.grid.x_n;
-y = d.grid.y_n-d.grid.y_n(1);
+y = d.grid.y_n;
 
 %% BASIC GENERAL SETTING
 % d.header                = d.header;      % title of up to 80 characters
@@ -40,7 +40,7 @@ switch d.mesh_type
     case 4
         n_plus          = 10;                           % number of buffer cells
         x_plus          = logspace(log10(x(end)-x(end-1)), log10(10*(x(end)-x(1))), n_plus); % generate n_plus value logspaced between the dx and 3 times the range of x value
-        y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(x(end)-x(1))), n_plus);
+        y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(y(end)-y(1))), n_plus);
         % x_plus          = (x(2)-x(1)).* 1.3.^(1:n_plus);
         d.xx            = sort([x(1)-x_plus x x(end)+x_plus]);             % array containing x coordinates of each of numnp_x node columns
         d.yy            = sort([y y(end)+y_plus]);      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
@@ -58,24 +58,29 @@ switch d.mesh_type
 end
 
 %% RESISITIVITY
-% d.num_regions           = d.num_regions;          % number of resistivity regions
-if d.num_regions == 0  % file, not working... instead set-up one value per grid cells, so num_regions is huge... 
+
+if 0  % file, not working... instead set-up one value per grid cells, so num_regions is huge... f.num_regions       = 0;
     error('Using a input file is not yet implemented working')
     d.rho_true            = d.rho_avg*ones(d.numnp_y-1,d.numnp_x-1);
     d.rho_true(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho_true;
     writeMatrix2Resdat(d)                            % write the rho_true
 elseif d.job_type == 0  % one value per grid cells in the inside grid plus a cst value for the buffer zone
     d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
-    d.rho_numnp(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho;
+    d.rho_numnp(1:end-n_plus,(n_plus+1):(d.numnp_x-1-n_plus))    = 1;
+    d.rho_numnp(end-n_plus+1:end,:)    = 2;
     idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
-    d.elem_1 = [1                           idx(~isnan(d.rho_numnp(:)))];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(~isnan(d.rho_numnp(:)))];
-    d.value =  [d.rho_avg                d.rho_numnp(~isnan(d.rho_numnp(:)))'] ;
+    d.elem_1 = [1                           idx(d.rho_numnp==2)                         idx(d.rho_numnp==1)];
+    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(d.rho_numnp==2)                         idx(d.rho_numnp==1)];
+    d.value =  [d.rho_avg                   repmat(d.rho_avg,1,sum(d.rho_numnp(:)==2))  d.rho(:)'] ;
 elseif d.job_type == 1 % for inversion, only one average value is given...
-    d.elem_1 = [1                          ];% 3461 3509 3557 3605 3653 3701 3749 3797];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1)];% 3472 3520 3568 3616 3664 3712 3760 3808];
-    d.value =  [d.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
+    d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
+    d.rho_numnp(end-n_plus+1:end,:)    = 2;
+    idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.elem_1 = [1                           idx(d.rho_numnp==2)];
+    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(d.rho_numnp==2)];
+    d.value  = [d.rho_avg                   repmat(d.rho_avg,1,sum(d.rho_numnp(:)==2))];
 end
+d.num_regions = numel(d.value);          % number of resistivity regions
 
 %% INVERSE SOLUTION
 if d.job_type==1 % inverse solution
@@ -126,13 +131,13 @@ d.x_poly                        = [x(1) x(end) x(end) x(1)   x(1)];   % co-ordin
 d.y_poly                        = -[y(1) y(1)   y(end) y(end) y(1)];
 
 %% ELECTRODE
-d.num_electrodes                = elec.n;   % Number of electrodes
+d.num_electrodes                = elec.n+2;   % Number of electrodes
 d.j_e                           = 1:d.num_electrodes;   % electrode number
 if d.job_type==1 && d.inverse_type==3
     d.node      = NaN;                   % node number in the finite element mesh
 else
-    d.column    = n_plus+d.elec_id;   % column index for the node the finite element mesh
-    d.row       = ones(1,d.num_electrodes); % row index for the node in the finite element mesh
+    d.column    = [n_plus+d.elec_X_id(:)' 1 d.numnp_x];   % column index for the node the finite element mesh
+    d.row       = [d.elec_Y_id(:)' 1 1]; % row index for the node in the finite element mesh   
 end
 
 %% PROTOCOL
@@ -177,8 +182,8 @@ if ~d.readonly
 end
 
 %% OUPUT
-d.pseudo_x=elec.pseudo_x;
-d.pseudo_y=elec.pseudo_y;
+% d.pseudo_x=elec.pseudo_x;
+% d.pseudo_y=elec.pseudo_y;
 d.output=readOutput(d);
 end
 

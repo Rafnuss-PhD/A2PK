@@ -6,41 +6,41 @@ clc; clear all; addpath('../functions','R2'); dbstop if error
 
 % Grid size
 gen.xmax = 60; %total length in unit [m]
-gen.ymax = 20; %total hight in unit [m]
+gen.ymax = 30; %total hight in unit [m]
 
 % Scale define the subdivision of the grid (multigrid). At each scale, the
 % grid size is $(2^gen.sx+1) \times (2^gen.sy+1)$ 
-gen.nx = 121;
-gen.ny = 41;
+gen.nx = gen.xmax*2+1;
+gen.ny = gen.ymax*2+1;
 
 % Generation parameter
 gen.samp                = 1;          % Method of sampling of K and g | 1: borehole, 2:random. For fromK or from Rho only
 gen.samp_n              = 0;          % number of well or number of point
 gen.covar(1).model      = 'exponential';
-gen.covar(1).range0     = [2 5]; 
+gen.covar(1).range0     = [5 20]; 
 gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
 gen.covar               = kriginginitiaite(gen.covar);
-gen.mu                  = -1.579;%0.27; % parameter of the first field. 
-gen.std                 = sqrt(0.22361);%.05;
+gen.mu                  = 0.25;%0.27; % parameter of the first field. 
+gen.std                 = 0.05;%.05;
 gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise', 'RESINV3D'
 
 % Electrical inversion
 gen.Rho.f ={};
 gen.Rho.f.res_matrix    = 0;
-gen.Rho.elec.spacing_y  = 0.5; % in unit [m] | adapted to fit the fine grid
-gen.Rho.elec.bufzone_y  = 2; % number of electrod to skip 
-gen.Rho.elec.x_t        = [gen.xmax/2]; % in unit [m] | adapted to fit the fine grid
-gen.Rho.elec.x_r        = gen.xmax/4.*[1 3]; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.spacing_y  = 1; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.bufzone_y  = 5; % number of electrod to skip 
+gen.Rho.elec.x_t        = 30; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.x_r        = [10 50]; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
-gen.Rho.i.grid.nx       = 120; % | adapted to fit the fine grid
-gen.Rho.i.grid.ny       = 40; % log-spaced grid  | adapted to fit the fine grid
+gen.Rho.i.grid.nx       = gen.nx; % | adapted to fit the fine grid
+gen.Rho.i.grid.ny       = gen.ny; % log-spaced grid  | adapted to fit the fine grid
 gen.Rho.i.res_matrix    = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
 
 % Other parameter
 gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
 gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
-gen.name                = '120x40';
+gen.name                = '60x40';
 gen.seed                = 8;
 
 % Run the function
@@ -48,103 +48,123 @@ fieldname = data_generation(gen);
 %[fieldname, grid_gen, K_true, phi_true, sigma_true, K, sigma, Sigma, gen] = data_generation(gen);
 
 
-%% Area-to-point Kriging
-% This section load the synthetic data create the covariance matrices and
-% compute the kriging weight to finally produce the Kriging map
 
-clear all; addpath(genpath('./.')); dbstop if error 
-load(['ERT/result/' fieldname]);
 
-% Add some nice colormap
-addpath('C:\Users\rafnu\Documents\MATLAB\Colormaps\')
-colormap(viridis())
+%% Reproducing Theim equation
+% Uniform K, 1 pumping well and 3 measuring well separated by 10 m each.
+load('data_gen/data/FOR-60x20_2018-02-27_09-34.mat')
 
-% Normal Score based on empirical CDF
-% [kern.prior,kern.axis_prim] = ksdensity(sigma_true(:));
-% parm.nscore=1;
-% Nscore = nscore(kern, parm, 0);
-% Sec=Sigma; 
-% Sec.d = reshape(Nscore.forward(Sec.d(:)) ,numel(Sec.y),numel(Sec.x));
-% Prim.d = reshape(Nscore.forward(sigma_true(:)), grid_gen.ny, grid_gen.nx);
-% Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
+% Thiem equation
+% 
+% $$h_{2}-h_{1}={\frac {Q}{2\pi b K}}\ln \left({\frac {r_{1}}{r_{2}}}\right)$$
+% 
+
+
+uex = unique(gen.Rho.elec.X(gen.Rho.elec.data(:,1)));
+id = bsxfun(@eq,gen.Rho.elec.X(gen.Rho.elec.data(:,1))',uex );
+h = id* gen.Rho.f.output.resistance./sum(id,2); 
+dh = bsxfun(@minus,h',h);
+
+Q=1;
+b=gen.ymax;
+K=mean(K_true(:));
+r=abs(gen.Rho.elec.x_r-gen.Rho.elec.x_t);
+dr = bsxfun(@rdivide,r',r);
+
+disp(-Q/(2*pi*b*K).*log(dr))
+disp(dh)
+disp(-(dh+Q/(2*pi*b*K).*log(dr))./(Q/(2*pi*b*K).*log(dr))*100)
+
+
+% Point-source injection
+%
+% $$ Q =4\pi^2 K \frac{\partial h}{\partial r}$$
+% $$h_{2}-h_{1}={\frac {Q}{4\pi K}}\ln \left({\frac {1}{r_{2}} - \frac {1}{r_{1}}}\right)$$
+
+
+[~,id] = min((gen.Rho.elec.Y(gen.Rho.elec.data(:,3))-30).^2);
+id = gen.Rho.elec.Y(gen.Rho.elec.data(:,3))==gen.Rho.elec.Y(gen.Rho.elec.data(id,3));
+h = gen.Rho.f.output.resistance(id);
+
+x=gen.Rho.elec.X(gen.Rho.elec.data(id,1));
+y=gen.Rho.elec.Y(gen.Rho.elec.data(id,1));
+x0=gen.Rho.elec.X(gen.Rho.elec.data(id,3));
+y0=gen.Rho.elec.Y(gen.Rho.elec.data(id,3));
+
+figure(2); hold on;
+scatter(x, y,[],log(h),'filled')
+plot(x0,y0,'xk')
+
+Q=1;
+K=mean(K_true(:));
+r=sqrt( (x-x0).^2 + (y-y0).^2 );
+R= 5; H=mean(h(r==R));
+ht = -Q/(4*pi*K).*(-1./r+1/R) + H;
+
+figure; hold on;
+scatter3(x,y,h,'.')
+scatter3(x,y,ht,'.')
+
+
+%% Inversion
+load('data_gen/data/GEN-60x40_2018-03-01_12-45.mat')
+addpath('../functions','R2');
 
 % Normal Score based on known distribution of Prim and Sec
-Nscore.forward = @(x) (log(x./43)/1.4-gen.mu)./gen.std;
-Nscore.inverse = @(x) 43.*exp(1.4*(x.*gen.std+gen.mu));
-Sec=Sigma; 
-Sec.d = Nscore.forward(Sigma.d);
-Prim.d = Nscore.forward(sigma_true);
+Nscore.forward = @(x) ( (log10(x)+4.97)./6.66 - gen.mu)./gen.std;
+Nscore.inverse = @(x) 6.66*10^(x.*gen.std+gen.mu)-4.97;
+Sec=K; 
+Sec.d = Nscore.forward(Sec.d);
+Prim.d = Nscore.forward(K_true);
 Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
+
 
 % Figure of intial data
 figure(1); clf;c_axis=[ min(Prim.d(:)) max(Prim.d(:)) ];
-subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('zt True field');
-subplot(2,1,2); imagesc(Sec.x, Sec.y, Sec.d); caxis(c_axis); title('Inverted field'); axis tight equal; box on;colormap(viridis())
-% export_fig -eps 'Prim_and_sec'
+subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('True field'); axis tight equal; 
+subplot(2,1,2); hold on;
+imagesc(Sec.x, Sec.y, Sec.d); title('Inverted field'); box on;colormap(viridis()); axis tight equal;set(gca,'Ydir','reverse')
+plot(gen.Rho.elec.x_t,gen.Rho.elec.y,'or')
+plot(gen.Rho.elec.x_r(1),gen.Rho.elec.y,'xb')
+plot(gen.Rho.elec.x_r(2),gen.Rho.elec.y,'xb')
 
-figure(2); clf; c_axis_n=log10([ min(sigma_true(:)) max(sigma_true(:)) ]);
-subplot(2,1,1);surface(grid_gen.x, grid_gen.y, log10(sigma_true),'EdgeColor','none','facecolor','flat'); 
-caxis(c_axis_n); title('True Electrical Conductivity \sigma^{true}');axis equal tight; box on; xlabel('x');ylabel('y'); set(gca,'Ydir','reverse');
-subplot(2,1,2); surface(Sigma.x, Sigma.y, log10(Sigma.d),'EdgeColor','none','facecolor','flat'); 
-caxis(c_axis_n); title('Inverted Electrical Conductivity U \sigma^{est}'); axis equal tight; box on; xlabel('x');ylabel('y');set(gca,'Ydir','reverse'); colorbar('southoutside')
-colormap(viridis())
-% export_fig -eps 'Prim_and_sec_log'
+% export_fig -eps 'Prim_and_sec'
 
 
 
 % Built the matrix G which link the true variable Prim.d to the measured coarse scale d
 G = zeros(numel(Sec.d), numel(Prim.d));
 for i=1:numel(Sec.d)
-    Res = reshape(Sigma.res(i,:)+Sigma.res_out(i)/numel(Sigma.res(i,:)),numel(Sec.y),numel(Sec.x));
+    Res = reshape(Sec.res(i,:)+Sec.res_out(i)/numel(Sec.res(i,:)),numel(Sec.y),numel(Sec.x));
     f = griddedInterpolant({Sec.y,Sec.x},Res,'linear');
     res_t = f({Prim.y,Prim.x});
     G(i,:) = res_t(:) ./sum(res_t(:));
 end
 
-% View Resolution matrix
-% OLD large grid: i=[1838 4525 8502]; th=.05; x_lim=[16 25; 35 65; 90 99]; y_lim=[-.12 7; -.12 19.57; -.12 8]; ccaxis=[-.02 .02; -.002 .002; -.01 .01];
-i=[410 1498 2800]; th=.05; x_lim=[8 20; 35 65; 80 100]; y_lim=[-.007 7; -.007 14.37; -.007 10]; ccaxis=[-.05 .05; -.01 .01; -.02 .02];
-figure(3); clf; colormap(viridis())
-subplot(2,numel(i),[1 numel(i)]);hold on; surface(Sec.X,Sec.Y,reshape(diag(Sigma.res),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  
-scatter3(Sec.X(i),Sec.Y(i),100*ones(numel(i),1),'sr','filled')
-for ii=1:numel(i)
-    rectangle('Position',[x_lim(ii,1) y_lim(ii,1) range(x_lim(ii,:)) range(y_lim(ii,:))],'EdgeColor','r','linewidth',1)
-end
-view(2); axis tight equal; set(gca,'Ydir','reverse'); box on; axis equal tight; xlabel('x');ylabel('y'); title('Diagonal of the resolution matrix R'); colorbar('southoutside')
-for ii=1:numel(i)
-    subplot(2,numel(i),numel(i)+ii);hold on; surface(Sec.X,Sec.Y,reshape(Sigma.res(i(ii),:),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  scatter3(Sec.X(i(ii)),Sec.Y(i(ii)),100,'sr','filled')
-    view(2); axis tight equal; set(gca,'Ydir','reverse'); box on; axis equal tight; xlabel('x');ylabel('y'); title('Resolution of the red dot R(i,:)'); xlim(x_lim(ii,:)); ylim(y_lim(ii,:));
-    caxis(ccaxis(ii,:))
-    colorbar('southoutside')
-%     subplot(2,numel(i),2*numel(i)+ii);hold on; surface(Prim.X,Prim.Y,reshape(G(i(ii),:), numel(Prim.y), numel(Prim.x)),'EdgeColor','none','facecolor','flat'); scatter3(Sec.X(i(ii)),Sec.Y(i(ii)),100,'sr','filled')
-%     view(2); axis tight equal; set(gca,'Ydir','reverse'); box on;  axis equal;  xlabel('x');ylabel('y'); xlim(x_lim(ii,:)); ylim(y_lim(ii,:))
-end
-% export_fig -eps 'Res'
-
-
-% Compute coarse G-transformed of the true fine scale and compare it to the
-% inverted field
 Test_Sec_d = reshape(G * Prim.d(:), numel(Sec.y), numel(Sec.x));
 figure(4); clf; colormap(viridis())
-subplot(3,1,1);surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse'); caxis([-3 3]); axis equal tight; box on; xlabel('x');ylabel('y'); title('Inverted Electrical Conductivity \Sigma^{est}')
-subplot(3,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  caxis([-3 3]);axis equal tight; box on; xlabel('x');ylabel('y'); colorbar('southoutside'); title('G-transform of the True Electrical Conductivity Gz^{true}')
-subplot(3,1,3);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y'); colorbar('southoutside'); title('Error')
-export_fig -eps 'SecvsTestSecD'
-
+subplot(3,1,1);
+surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none','facecolor','flat'); 
+view(2); set(gca,'Ydir','reverse'); caxis([-1.5 1.5]); axis equal tight; box on; xlabel('x');ylabel('y'); colorbar; title('Inverted field Z^{est}')
+subplot(3,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none','facecolor','flat'); 
+view(2); set(gca,'Ydir','reverse');  caxis([-1.5 1.5]);axis equal tight; box on; xlabel('x');ylabel('y'); colorbar; title('G-transform of the true field Gz^{true}')
+subplot(3,1,3);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); 
+view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y');colorbar;  title('Error Gz^{true}-Z^{est}')
+% export_fig -eps 'SecvsTestSecD'
 
 
 % Generate a sampling
-Prim_pt = sampling_pt(Prim,Prim.d,1,1);
+Prim_pt = sampling_pt(Prim,Prim.d,2,0);
 
 
 % Compute the covariance of the data error
 Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
-Cmt=(eye(size(Sigma.res))-Sigma.res)*Cm;
+Cmt=(eye(size(Sec.res))-Sec.res)*Cm;
 
 
 % Compute the covariance of the spatial model
 covar = kriginginitiaite(gen.covar);
-Cz = covar.g(squareform(pdist([Prim.X Prim.Y]*covar.cx)));
+Cz = covar.g(squareform(pdist([Prim.X(:) Prim.Y(:)]*covar.cx)));
 Cz=sparse(Cz);
 Czd = Cz * G';
 Cd = G * Czd;
@@ -160,8 +180,8 @@ CCb = [ Czd' ; Czzh' ];
 
 
 % Solve the kriging system
-W=zeros(nx*ny,numel(Sec.d(:))+Prim_pt.n);
-parfor ij=1:nx*ny
+W=zeros(numel(Prim.x)*numel(Prim.y),numel(Sec.d(:))+Prim_pt.n);
+parfor ij=1:numel(Prim.x)*numel(Prim.y)
      W(ij,:) = CCa \ CCb(:,ij);
 end
 % save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')

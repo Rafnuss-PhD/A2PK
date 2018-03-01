@@ -42,7 +42,7 @@ if d.job_type == 1 % inverse solution
             output.sen=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
             
             n_parm = (d.numnp_y-1)*(d.numnp_x-1);
-            n_obs = numel(d.pseudo_x);
+            n_obs = size(d.elec,1);
             
             % Jacobian Matrix
             data=dlmread([d.filepath dataset '_J.dat']);
@@ -114,17 +114,17 @@ else
     output.resistance=data(:,6);
     
     % Interpolation
-    if numel(d.pseudo_x) == numel(output.pseudo)
-        f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.pseudo,'nearest','none');
-        output.pseudo_interp = f({d.grid.y,d.grid.x});
-        
-%         if d.job_type == 1
-%             f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.err,'nearest','none');
-%             output.err_interp = f({d.grid.y,d.grid.x});
-%         end
-    else
-        output.pseudo_interp = nan(numel(d.grid.x),numel(d.grid.y));
-    end
+%     if numel(d.pseudo_x) == numel(output.pseudo)
+%         f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.pseudo,'nearest','none');
+%         output.pseudo_interp = f({d.grid.y,d.grid.x});
+%         
+% %         if d.job_type == 1
+% %             f=scatteredInterpolant(d.pseudo_y,d.pseudo_x,output.err,'nearest','none');
+% %             output.err_interp = f({d.grid.y,d.grid.x});
+% %         end
+%     else
+%         output.pseudo_interp = nan(numel(d.grid.x),numel(d.grid.y));
+%     end
 
 end
 
