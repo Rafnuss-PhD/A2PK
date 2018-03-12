@@ -5,7 +5,7 @@
 clc; clear all; addpath('../functions','R2'); dbstop if error 
 
 % Grid size
-gen.xmax = 60; %total length in unit [m]
+gen.xmax = 50; %total length in unit [m]
 gen.ymax = 30; %total hight in unit [m]
 
 % Scale define the subdivision of the grid (multigrid). At each scale, the
@@ -16,7 +16,8 @@ gen.ny = gen.ymax*2+1;
 % Generation parameter
 gen.samp                = 1;          % Method of sampling of K and g | 1: borehole, 2:random. For fromK or from Rho only
 gen.samp_n              = 0;          % number of well or number of point
-gen.covar(1).model      = 'exponential';
+gen.covar(1).model      = 'k-bessel';
+gen.covar(1).alpha      = 0.5;
 gen.covar(1).range0     = [5 20]; 
 gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
@@ -29,18 +30,18 @@ gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise
 gen.Rho.f ={};
 gen.Rho.f.res_matrix    = 0;
 gen.Rho.elec.spacing_y  = 1; % in unit [m] | adapted to fit the fine grid
-gen.Rho.elec.bufzone_y  = 5; % number of electrod to skip 
-gen.Rho.elec.x_t        = 30; % in unit [m] | adapted to fit the fine grid
-gen.Rho.elec.x_r        = [10 50]; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.bufzone_y  = 2; % number of electrod to skip 
+gen.Rho.elec.x_t        = 25; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.x_r        = [10 40]; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
-gen.Rho.i.grid.nx       = gen.nx; % | adapted to fit the fine grid
-gen.Rho.i.grid.ny       = gen.ny; % log-spaced grid  | adapted to fit the fine grid
+gen.Rho.i.grid.nx       = (gen.nx-1)/2+1; % | adapted to fit the fine grid
+gen.Rho.i.grid.ny       = (gen.ny-1)/2+1; % log-spaced grid  | adapted to fit the fine grid
 gen.Rho.i.res_matrix    = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true resolution matrix or 0-none
 
 % Other parameter
 gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
 gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
-gen.name                = '60x40';
+gen.name                = '60x20';
 gen.seed                = 8;
 
 % Run the function
@@ -107,7 +108,8 @@ scatter3(x,y,ht,'.')
 
 
 %% Inversion
-load('data_gen/data/GEN-60x40_2018-03-01_12-45.mat')
+fieldname='GEN-60x20_2018-03-12_15-49';
+load(['data_gen/data/' fieldname '.mat'])
 addpath('../functions','R2');
 
 % Normal Score based on known distribution of Prim and Sec
@@ -127,7 +129,6 @@ imagesc(Sec.x, Sec.y, Sec.d); title('Inverted field'); box on;colormap(viridis()
 plot(gen.Rho.elec.x_t,gen.Rho.elec.y,'or')
 plot(gen.Rho.elec.x_r(1),gen.Rho.elec.y,'xb')
 plot(gen.Rho.elec.x_r(2),gen.Rho.elec.y,'xb')
-
 % export_fig -eps 'Prim_and_sec'
 
 
@@ -159,7 +160,7 @@ Prim_pt = sampling_pt(Prim,Prim.d,2,0);
 
 % Compute the covariance of the data error
 Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
-Cmt=(eye(size(Sec.res))-Sec.res)*Cm;
+Cmt = (eye(size(Sec.res))-Sec.res)*Cm;
 
 
 % Compute the covariance of the spatial model
@@ -187,27 +188,28 @@ end
 % save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
 
 % Compute the Kriging map
-zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
+zh = reshape( W * [Sec.d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
 %zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
 
 figure(5); clf;   colormap(viridis())
 surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
 view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate')
-export_fig -eps 'Krig'
+% export_fig -eps 'Krig'
 
 
 %% Simulation of the Area-to-point Kriging 
 rng('shuffle');
 
-parm.n_real = 500;
-zcs=nan(ny, nx,parm.n_real);
+parm.n_real = 30;
+covar = kriginginitiaite(gen.covar);
+zcs=nan(numel(Prim.y), numel(Prim.x),parm.n_real);
 z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
 for i_real=1:parm.n_real
     zs = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
     %zs = fftma_perso(gen.covar, grid_gen);
     zhs = W * [G * zs(:) ; zs(Prim_pt.id)./1.3];
     r = zh(:) + (zs(:) - zhs(:));
-    zcs(:,:,i_real) = reshape( r, ny, nx);
+    zcs(:,:,i_real) = reshape( r, numel(Prim.y), numel(Prim.x));
     z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
 end
 
@@ -219,7 +221,16 @@ subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'
 subplot(4,1,2);surf(Prim.x, Prim.y, zcs(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Prim.x, Prim.y, mean(zcs,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,4);surf(Prim.x, Prim.y, std(zcs,[],3),'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
-export_fig -eps 'PrimOverview'
+%export_fig -eps 'PrimOverview'
+
+figure(65);clf; colormap(viridis())
+c_axis=[ -3 3];
+subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
+% hold on; scatter(Prim_pt.x,Prim_pt.y,'filled','r')
+subplot(4,1,2);surf(Prim.x, Prim.y, zcs(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
+subplot(4,1,3);surf(Prim.x, Prim.y, zcs(:,:,2),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
+subplot(4,1,4);surf(Prim.x, Prim.y, zcs(:,:,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
+%export_fig -eps 'PrimOverview'
 
 figure(7);clf; colormap(viridis())
 c_axis=[ -3 3];
@@ -227,12 +238,12 @@ subplot(4,1,1);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); 
 subplot(4,1,2);surf(Sec.x, Sec.y, z(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');
 subplot(4,1,4);surf(Sec.x, Sec.y, std(z,[],3),'EdgeColor','none','facecolor','flat');  title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
-export_fig -eps 'SecOverview'
+%export_fig -eps 'SecOverview'
 
 figure(8);clf;colormap(viridis())
 subplot(2,1,1);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y'); caxis([-.6 .6]);colorbar('southoutside');
 subplot(2,1,2);surf(Sec.x, Sec.y, mean(z,3)-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar('southoutside');caxis([-.6 .6])
-export_fig -eps 'GztrueGzsim'
+%export_fig -eps 'GztrueGzsim'
 
 % Compute the Variogram and Histogram of realiaztions
 parm.n_real=500;

@@ -40,10 +40,10 @@ switch d.mesh_type
     case 4
         n_plus          = 10;                           % number of buffer cells
         x_plus          = logspace(log10(x(end)-x(end-1)), log10(10*(x(end)-x(1))), n_plus); % generate n_plus value logspaced between the dx and 3 times the range of x value
-        y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(y(end)-y(1))), n_plus);
+        % y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(y(end)-y(1))), n_plus);
         % x_plus          = (x(2)-x(1)).* 1.3.^(1:n_plus);
         d.xx            = sort([x(1)-x_plus x x(end)+x_plus]);             % array containing x coordinates of each of numnp_x node columns
-        d.yy            = sort([y y(end)+y_plus]);      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
+        d.yy            = y;%sort([y y(end)+y_plus]);      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
         % Set yy(1) to zero and the other values to a positive number
         d.numnp_x       = numel(d.xx);                  % number of nodes in the x direction
         d.numnp_y       = numel(d.yy);                  % number of nodes in the y direction
@@ -66,19 +66,16 @@ if 0  % file, not working... instead set-up one value per grid cells, so num_reg
     writeMatrix2Resdat(d)                            % write the rho_true
 elseif d.job_type == 0  % one value per grid cells in the inside grid plus a cst value for the buffer zone
     d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
-    d.rho_numnp(1:end-n_plus,(n_plus+1):(d.numnp_x-1-n_plus))    = 1;
-    d.rho_numnp(end-n_plus+1:end,:)    = 2;
+    d.rho_numnp(:,(n_plus+1):(d.numnp_x-1-n_plus))    = 1;
     idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
-    d.elem_1 = [1                           idx(d.rho_numnp==2)                         idx(d.rho_numnp==1)];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(d.rho_numnp==2)                         idx(d.rho_numnp==1)];
-    d.value =  [d.rho_avg                   repmat(d.rho_avg,1,sum(d.rho_numnp(:)==2))  d.rho(:)'] ;
+    d.elem_1 = [1                           idx(d.rho_numnp==1)];
+    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(d.rho_numnp==1)];
+    d.value =  [d.rho_avg                    d.rho(:)'] ;
 elseif d.job_type == 1 % for inversion, only one average value is given...
     d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
-    d.rho_numnp(end-n_plus+1:end,:)    = 2;
-    idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
-    d.elem_1 = [1                           idx(d.rho_numnp==2)];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(d.rho_numnp==2)];
-    d.value  = [d.rho_avg                   repmat(d.rho_avg,1,sum(d.rho_numnp(:)==2))];
+    d.elem_1 = [1                           ];
+    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) ];
+    d.value  = [d.rho_avg                   ];
 end
 d.num_regions = numel(d.value);          % number of resistivity regions
 
@@ -119,10 +116,7 @@ if d.job_type==1 % inverse solution
     elseif d.mesh_type==3 % Trigular Mesh
         d.qual_ratio        = NaN;   % 0 for qualitative comparison with forward solution, i.e. only when one observed data set is available,
         % or qual_ratio is 1 if the observed data in protocol.dat contains a ratio of two datasets
-    end
-    d.rho_min                   = 0;        % minimum observed apparent resistivity to be used
-    d.rho_max                   = 5000;     % maximum observed apparent resistivity to be used
-    
+    end    
 end
 
 %% REGION OUTPUT (new in 2.7)

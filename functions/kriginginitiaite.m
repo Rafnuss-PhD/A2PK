@@ -86,7 +86,7 @@ for i=1:numel(covar)
             intvario=1.5;
         case 'k-bessel'
             assert(isfield(covar, 'alpha'),'alpha covar is not properly define')
-            assert(covar(i).alpha>0 && covar(i).alpha<2,'Alpha value not possible')
+            assert(covar(i).alpha>0,'Alpha value not possible')
             intvario=[.35 .5];
             covar(i).g = @(h) 1/(2^(covar(i).alpha-1) * gamma(covar(i).alpha)) .* max(h,eps).^covar(i).alpha .* besselk(covar(i).alpha,max(h,eps));
         case 'logarithmic'
