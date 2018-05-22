@@ -62,11 +62,11 @@ fieldname = 'GEN-600x40_2017-12-21_15-44';
 % This section load the synthetic data create the covariance matrices and
 % compute the kriging weight to finally produce the Kriging map
 
-addpath(genpath('./.'));
-load(['ERT/result/' fieldname]);
+addpath('../functions','R2');
+load(['result/' fieldname]);
 
 % Add some nice colormap
-addpath('C:\Users\rafnu\Documents\MATLAB\Colormaps\')
+addpath('C:\Users\rnussba1\Documents\MATLAB\Colormaps\')
 colormap(viridis())
 
 % Normal Score based on empirical CDF
@@ -142,6 +142,7 @@ subplot(3,1,3);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolo
 
 % Generate a sampling
 Prim_pt = sampling_pt(Prim,Prim.d,1,1);
+% Prim_pt = sampling_pt(Prim,Prim.d,1,0);
 
 % Compute the covariance of the data error
 Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
@@ -149,7 +150,7 @@ Cmt=(eye(size(Sigma.res))-Sigma.res)*Cm;
 
 % Compute the covariance of the spatial model
 covar = kriginginitiaite(gen.covar);
-Cz = covar.g(squareform(pdist([Prim.X Prim.Y]*covar.cx)));
+Cz = covar.g(squareform(pdist([Prim.X(:) Prim.Y(:)]*covar.cx)));
 Cz=sparse(Cz);
 Czd = Cz * G';
 Cd = G * Czd;
@@ -160,39 +161,54 @@ Czh = Cz(Prim_pt.id,Prim_pt.id);
 Czzh = Cz(Prim_pt.id,:);
 Czhd = Czd( Prim_pt.id ,:);
 CCa = [ Cd2 Czhd' ; Czhd Czh ];
-CCb = [ Czd' ; Czzh' ];
+CCb = [ Czd' ; Czzh ];
 
 
 % Solve the kriging system
-W=zeros(nx*ny,numel(Sec.d(:))+Prim_pt.n);
-parfor ij=1:nx*ny
-     W(ij,:) = CCa \ CCb(:,ij);
+Cz0=covar.g(0);
+% W=zeros(numel(Prim.x)*numel(Prim.y),numel(Sec.d(:))+Prim_pt.n);
+S=nan(numel(Prim.y),numel(Prim.x));
+for ij=1:numel(Prim.x)*numel(Prim.y)
+     % W(ij,:) = CCa \ CCb(:,ij);
+     S(ij) =  Cz0 - W(ij,:) * CCb(:,ij);
 end
-save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
-load(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
+save(['result/' fieldname '_cond'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
+load(['result/' fieldname '_cond'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
+% save(['result/' fieldname '_cond_noHD'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
+% load(['result/' fieldname '_cond_noHD'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
+
 
 % Compute the Kriging map
-zh = reshape( W * [Sec.d(:) ; Prim_pt.d], ny, nx);
-zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
+zh = reshape( W * [Sec.d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));numel(Prim.y), numel(Prim.x)
+zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
 
 figure(5); clf;   colormap(viridis())
-surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
+subplot(2,1,1);surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
 view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate')
-% export_fig -eps 'Krig'
+subplot(2,1,2);surf(Prim.x,Prim.y,S,'EdgeColor','none','facecolor','flat'); caxis([0 1])
+view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate Error Variance')
+export_fig -eps 'Krig'
 
+figure(51); clf;
+S(S<=eps)=eps;
+histogram( (Prim.d(:)-zh(:))./ sqrt(S(:)) )
+
+figure(31); clf; colormap(viridis())
+hold on; surface(Sec.X,Sec.Y,reshape(diag(Cmt),numel(Sec.y),numel(Sec.x)),'EdgeColor','none','facecolor','flat');  
+axis equal tight; box on; xlabel('x');ylabel('y'); set(gca,'Ydir','reverse');
 
 %% Simulation of the Area-to-point Kriging 
 rng('shuffle');
 
 parm.n_real = 500;
-zcs=nan(ny, nx,parm.n_real);
+zcs=nan(numel(Prim.y), numel(Prim.x),parm.n_real);
 z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
 for i_real=1:parm.n_real
     zs = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
     %zs = fftma_perso(gen.covar, grid_gen);
     zhs = W * [G * zs(:) ; zs(Prim_pt.id)./1.3];
     r = zh(:) + (zs(:) - zhs(:));
-    zcs(:,:,i_real) = reshape( r, ny, nx);
+    zcs(:,:,i_real) = reshape( r, numel(Prim.y), numel(Prim.x));
     z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
 end
 
@@ -206,6 +222,21 @@ subplot(4,1,3);surf(Prim.x, Prim.y, mean(zcs,3),'EdgeColor','none','facecolor','
 subplot(4,1,4);surf(Prim.x, Prim.y, std(zcs,[],3),'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
 % export_fig -eps 'PrimOverview'
 
+figure(61);clf; colormap(viridis())
+surf(Prim.x, Prim.y,  mean(zcs,3)-Prim.d,'EdgeColor','none','facecolor','flat');view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
+
+
+figure(62); clf;
+S(S<=eps)=eps;
+tmp = (zcs-repmat(zh,1,1,parm.n_real)) ./ sqrt(repmat(S,1,1,parm.n_real));
+histogram( tmp(:) ,-3:.1:3); xlim([-3 3])
+
+figure(63); clf; hold on;
+scatter(repmat(zh(:),parm.n_real,1),zcs(:),'.k')
+plot([min(zh(:)) max(zh(:))], [min(zh(:)) max(zh(:))], 'r')
+xlabel('True Electrical conductivity')
+ylabel('Simulated Electrical conductivity')
+
 figure(7);clf; colormap(viridis())
 c_axis=[ -3 3];
 subplot(4,1,1);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');  colorbar;
@@ -214,19 +245,20 @@ subplot(4,1,3);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none','facecolor','flat
 subplot(4,1,4);surf(Sec.x, Sec.y, std(z,[],3),'EdgeColor','none','facecolor','flat');  title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
 % export_fig -eps 'SecOverview'
 
+
 figure(8);clf;colormap(viridis())
 subplot(2,1,1);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y'); caxis([-.6 .6]);colorbar('southoutside');
 subplot(2,1,2);surf(Sec.x, Sec.y, mean(z,3)-Sec.d,'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar('southoutside');caxis([-.6 .6])
 % export_fig -eps 'GztrueGzsim'
 
 % Compute the Variogram and Histogram of realiaztions
-parm.n_real=500;
-vario_x=nan(parm.n_real,nx);
-vario_y=nan(parm.n_real,ny);
+% parm.n_real=500;
+vario_x=nan(parm.n_real,numel(Prim.x));
+vario_y=nan(parm.n_real,numel(Prim.y));
 for i_real=1:parm.n_real
     r = zcs(:,:,i_real);
     %r = (r(:)-mean(r(:)))./std(r(:));
-    [vario_x(i_real,:),vario_y(i_real,:)]=variogram_gridded_perso(reshape( r(:), ny, nx));
+    [vario_x(i_real,:),vario_y(i_real,:)]=variogram_gridded_perso(reshape( r(:), numel(Prim.y), numel(Prim.x)));
 end
 [vario_prim_x,vario_prim_y]=variogram_gridded_perso(Prim.d);
 
@@ -267,11 +299,11 @@ legend([h1 h2 h3 h4],'500 realizations','True field','Theorical Model','Sampled 
 %% Forward simulation
 % Put the realization in the forward ERT
 
-parm.n_real=500;
+% parm.n_real=500;
 fsim_pseudo=nan(numel(gen.Rho.f.output.pseudo),parm.n_real);
 fsim_resistance=nan(numel(gen.Rho.f.output.resistance),parm.n_real);
 rho = 1000./Nscore.inverse(zcs);
-for i_real=1:parm.n_real
+parfor i_real=1:parm.n_real
     f={};
     f.res_matrix        = gen.Rho.f.res_matrix;
     f.grid              = gen.Rho.f.grid;    
@@ -312,8 +344,6 @@ xlabel('Misfit'); ylabel('Histogram')
 % export_fig -eps 'misfit-hist'
 
 
-
-
 figure(12);clf; colormap(viridis());c_axis=[min(gen.Rho.f.output.pseudo(:)) max(gen.Rho.f.output.pseudo(:))]; clf;
 subplot(3,1,1); scatter(gen.Rho.f.pseudo_x,gen.Rho.f.pseudo_y,[],gen.Rho.f.output.pseudo,'filled');set(gca,'Ydir','reverse');caxis(c_axis);  xlim([0 100]); ylim([0 16]); colorbar('southoutside');
 subplot(3,1,2); scatter(gen.Rho.f.pseudo_x,gen.Rho.f.pseudo_y,[],mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse');caxis(c_axis); colorbar('southoutside');xlim([0 100]); ylim([0 16])
@@ -342,7 +372,11 @@ ylabel('Apparent resistivity measured from true fields');
 set(gca, 'YScale', 'log'); set(gca, 'XScale', 'log')
 % export_fig -eps 'pseudo-sec-err'
 
-   
+
+%% Sensitivity matrix
+
+
+
 
 %% Figure for Synthetic schema
    

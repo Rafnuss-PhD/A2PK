@@ -163,13 +163,13 @@ if ~d.readonly
     elseif isunix
         status = unix('wine R2.exe');
     elseif ispc
-        status = system('R2.exe');
+        [status,cmdout] = system('R2.exe');
     else
         error('Cannot recognize platform')
     end
 
     cd(pwd_temp);
-    disp(['Model run in ' num2str(toc) ' secondes.'])
+    %disp(['Model run in ' num2str(toc) ' secondes.'])
 
     if status~=0
         error('Model did not worked')
