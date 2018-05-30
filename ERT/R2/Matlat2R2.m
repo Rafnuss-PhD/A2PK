@@ -20,10 +20,6 @@
 function d = Matlat2R2(d,elec)
 % d is either the inverser (i) or forward (f) structure
 
-% x and y need to be node (intersection of cells) and not cell centered
-x = d.grid.x_n;
-y = d.grid.y_n-d.grid.y_n(1);
-
 %% BASIC GENERAL SETTING
 % d.header                = d.header;      % title of up to 80 characters
 % d.job_type              = d.job_type;    % 0 for forward solution only or 1 for inverse solution
@@ -38,12 +34,8 @@ switch d.mesh_type
     case 3 % Trigular Mesh
         d.scale         = NaN;                          % scaling factor for the mesh co-ordinates.
     case 4
-        n_plus          = 10;                           % number of buffer cells
-        x_plus          = logspace(log10(x(end)-x(end-1)), log10(10*(x(end)-x(1))), n_plus); % generate n_plus value logspaced between the dx and 3 times the range of x value
-        y_plus          = logspace(log10(y(end)-y(end-1)), log10(10*(x(end)-x(1))), n_plus);
-        % x_plus          = (x(2)-x(1)).* 1.3.^(1:n_plus);
-        d.xx            = sort([x(1)-x_plus x x(end)+x_plus]);             % array containing x coordinates of each of numnp_x node columns
-        d.yy            = sort([y y(end)+y_plus]);      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
+        d.xx            = d.grid.x_n;             % array containing x coordinates of each of numnp_x node columns
+        d.yy            = d.grid.y_n;      % array containing y coordinates of each of numnp_y node rows relative to the topog array.
         % Set yy(1) to zero and the other values to a positive number
         d.numnp_x       = numel(d.xx);                  % number of nodes in the x direction
         d.numnp_y       = numel(d.yy);                  % number of nodes in the y direction
@@ -58,23 +50,26 @@ switch d.mesh_type
 end
 
 %% RESISITIVITY
-% d.num_regions           = d.num_regions;          % number of resistivity regions
-if d.num_regions == 0  % file, not working... instead set-up one value per grid cells, so num_regions is huge... 
-    error('Using a input file is not yet implemented working')
-    d.rho_true            = d.rho_avg*ones(d.numnp_y-1,d.numnp_x-1);
-    d.rho_true(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho_true;
-    writeMatrix2Resdat(d)                            % write the rho_true
-elseif d.job_type == 0  % one value per grid cells in the inside grid plus a cst value for the buffer zone
-    d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
-    d.rho_numnp(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho;
-    idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
-    d.elem_1 = [1                           idx(~isnan(d.rho_numnp(:)))];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(~isnan(d.rho_numnp(:)))];
-    d.value =  [d.rho_avg                d.rho_numnp(~isnan(d.rho_numnp(:)))'] ;
+if d.job_type == 0  % one value per grid cells in the inside grid plus a cst value for the buffer zone
+%     d.rho_numnp            = nan(d.numnp_y-1,d.numnp_x-1);
+%     d.rho_numnp(1:(d.numnp_y-1-n_plus),(n_plus+1):(d.numnp_x-1-n_plus))    = d.rho;
+%     idx = 1:((d.numnp_y-1)*(d.numnp_x-1));
+%     d.elem_1 = [1                           idx(~isnan(d.rho_numnp(:)))];
+%     d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1) idx(~isnan(d.rho_numnp(:)))];
+%     d.value =  [d.rho_avg                d.rho_numnp(~isnan(d.rho_numnp(:)))'] ;
+    d.elem_1 = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.elem_2 = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.value =  d.rho(:)' ;
+
 elseif d.job_type == 1 % for inversion, only one average value is given...
     d.elem_1 = [1                          ];% 3461 3509 3557 3605 3653 3701 3749 3797];
     d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1)];% 3472 3520 3568 3616 3664 3712 3760 3808];
     d.value =  [d.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
+end
+d.num_regions = numel(d.value);          % number of resistivity regions
+
+if d.num_regions == 0  % file, not working... instead set-up one value per grid cells, so num_regions is huge... 
+    error('Using a input file is not yet implemented working')
 end
 
 %% INVERSE SOLUTION
@@ -98,7 +93,7 @@ if d.job_type==1 % inverse solution
         % using the �Differenceinversion� of LaBrecque and Yang (2000)
         
         d.tolerance             = d.tolerance;      % desired misfit (usually 1.0)
-        d.max_iterations        = 1;        % maximum number of iteration
+        d.max_iterations        = d.max_iterations;        % maximum number of iteration
         d.error_mod             = 0;        % 0 -preserve the data weights, 1 or 2-update the weights as the inversion progresses (error_mod=2 is recommended)
         d.alpha_aniso           = d.alpha_aniso;      % anisotropy of the smoothing factor: > 1 for smoother horizontal, alpha_aniso < 1 for smoother
         % vertical models, or alpha_aniso=1 for normal (isotropic) regularisation
@@ -122,8 +117,8 @@ end
 
 %% REGION OUTPUT (new in 2.7)
 d.num_xy_poly                   = 5;   % number of x,y co-ordinates that define a polyline bounding (4 corners + repeat the first corner)
-d.x_poly                        = [x(1) x(end) x(end) x(1)   x(1)];   % co-ordinates of points on the polyline
-d.y_poly                        = -[y(1) y(1)   y(end) y(end) y(1)];
+d.x_poly                        = [d.xx(1)  d.xx(end) d.xx(end) d.xx(1)   d.xx(1)];% [x(1) x(end) x(end) x(1)   x(1)];   % co-ordinates of points on the polyline
+d.y_poly                        = -[d.yy(1) d.yy(1)   d.yy(end) d.yy(end) d.yy(1)];%-[y(1) y(1)   y(end) y(end) y(1)];
 
 %% ELECTRODE
 d.num_electrodes                = elec.n;   % Number of electrodes
@@ -131,7 +126,7 @@ d.j_e                           = 1:d.num_electrodes;   % electrode number
 if d.job_type==1 && d.inverse_type==3
     d.node      = NaN;                   % node number in the finite element mesh
 else
-    d.column    = n_plus+d.elec_id;   % column index for the node the finite element mesh
+    d.column    = d.elec_id;   % column index for the node the finite element mesh
     d.row       = ones(1,d.num_electrodes);                   % row index for the node in the finite element mesh
 end
 
@@ -154,7 +149,7 @@ createR2in(d)
 
 %% RUN .EXE
 if ~d.readonly
-    copyfile('R2/R2.exe',d.filepath);
+    copyfile('R2/R2.exe',d.filepath,'f');
     pwd_temp = pwd;
     cd(d.filepath); tic;
     if ismac
@@ -163,7 +158,7 @@ if ~d.readonly
     elseif isunix
         status = unix('wine R2.exe');
     elseif ispc
-        [status,cmdout] = system('R2.exe');
+        [status] = system('R2.exe');
     else
         error('Cannot recognize platform')
     end

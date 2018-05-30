@@ -24,7 +24,7 @@ else
     fprintf(fileID,'%5.3f ', d.xx); fprintf(fileID,'    << xx\n\n');
     if d.mesh_type==4
         assert(d.numnp_x==length(d.topog))
-        fprintf(fileID,'%5.3f ', d.topog); fprintf(fileID,'    << \n\n');
+        fprintf(fileID,'%5.3f ', d.topog); fprintf(fileID,'    << topog\n\n');
     end
     assert(d.numnp_y==length(d.yy))
     fprintf(fileID,'%5.3f ', d.yy); fprintf(fileID,'    << yy\n\n');
@@ -37,7 +37,6 @@ if d.num_regions==0
     %fprintf(fileID,'    << file_name\n');
     fprintf(fileID,'%s\n\n',d.file_name);
 else
-    assert(numel(d.elem_1)==d.num_regions & numel(d.elem_2)==d.num_regions & numel(d.value)==d.num_regions,'elem_1, elem_2 and value needs to be equal to d.num_regions')
     fprintf(fileID,'%5d  %5d  %5d\n',[d.elem_1;d.elem_2;d.value]);
     fprintf(fileID,'\n\n');
 end
@@ -70,7 +69,7 @@ if d.job_type==1
 end
 
 %% OUPUT REGION
-assert(d.num_xy_poly==numel(d.x_poly) && d.num_xy_poly==numel(d.y_poly),'x_poly and y_poly need to be equal to num_xy_poly')
+assert(d.num_xy_poly==0 || (d.num_xy_poly==numel(d.x_poly) && d.num_xy_poly==numel(d.y_poly)) ,'x_poly and y_poly need to be equal to num_xy_poly')
 fprintf(fileID,'%d    << num_xy_poly    << x_poly, y_poly\n',d.num_xy_poly);
 fprintf(fileID,'%8.3f  %8.3f\n',[d.x_poly;d.y_poly]);
 fprintf(fileID,'\n\n');

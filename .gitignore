@@ -1,7 +1,7 @@
 ERT/data_gen/*
 HT/data_gen/*
 *.asv
-/result*/
+*result/
 *.mat
 
 # Windows image file caches

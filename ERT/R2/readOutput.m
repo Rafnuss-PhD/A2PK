@@ -13,12 +13,17 @@ if d.job_type == 1 % inverse solution
     end
     
     % read resistivity result
-    output.res=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
-
+    d.grid.ny=numel(d.grid.y);
+    d.grid.nx=numel(d.grid.x);
+    %output.res=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
+    output.res=flipud(reshape(data(:,3),d.numnp_y-1,d.numnp_x-1));
+    
+    
     % read error result
     data            = dlmread([d.filepath dataset '_err.dat'],'',1,0);
     output.err      = data(:,1);
-    output.pseudo   = data(:,3);
+    output.pseudoObs = data(:,2);
+    output.pseudoCalc= data(:,3);
     output.wight    = data(:,5);
     
     if d.res_matrix==1 % 1-'sensitivity' matrix
@@ -83,14 +88,15 @@ if d.job_type == 1 % inverse solution
             filetext = fileread([d.filepath 'R2.out']);
             beg = strfind(filetext,'Alpha:');
             ed = strfind(filetext(beg:end),'RMS Misfit:');  
-            alpha = str2double(filetext(beg(end)+6:beg(end)+ed(1)-3));
+            output.alpha = str2double(filetext(beg(end)+6:beg(end)+ed(1)-3));
             
-            output.Res = (sens + alpha * output.R)^(-1) * sens;
+            output.Cov = (sens + output.alpha * output.R)^(-1);
+            output.Res = output.Cov * sens;
 
             % Compute the zone inside, that is removing the buffer zone
-            output.inside=false( d.numnp_y-1, d.numnp_x-1);
-            dx = (d.numnp_x-1-d.grid.nx)/2 +1;
-            output.inside( 1:d.grid.ny, dx:end-dx+1) = true;
+%             output.inside=false( d.numnp_y-1, d.numnp_x-1);
+%             dx = (d.numnp_x-1-d.grid.nx)/2 +1;
+%             output.inside( 1:d.grid.ny, dx:end-dx+1) = true;
             
         catch
             warning('Not reading the jacobien, ressolution... matrices')
@@ -103,7 +109,7 @@ if d.job_type == 1 % inverse solution
     end
     
 else
-    data=dlmread([d.filepath 'forward_model.dat']);
+    % data=dlmread([d.filepath 'forward_model.dat']);
     % output.x=unique(data(:,1));
     % output.y=-unique(data(:,2));  
     % output.re=flipud(reshape(data(:,3),d.grid.ny,d.grid.nx));
