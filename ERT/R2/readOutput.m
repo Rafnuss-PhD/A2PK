@@ -23,7 +23,7 @@ if d.job_type == 1 % inverse solution
     data            = dlmread([d.filepath dataset '_err.dat'],'',1,0);
     output.err      = data(:,1);
     output.pseudoObs = data(:,2);
-    output.pseudoCalc= data(:,3);
+    output.pseudoCalc = data(:,3);
     output.wight    = data(:,5);
     
     if d.res_matrix==1 % 1-'sensitivity' matrix
@@ -87,11 +87,19 @@ if d.job_type == 1 % inverse solution
             % Compute the Resolution Matrix
             filetext = fileread([d.filepath 'R2.out']);
             beg = strfind(filetext,'Alpha:');
-            ed = strfind(filetext(beg:end),'RMS Misfit:');  
-            output.alpha = str2double(filetext(beg(end)+6:beg(end)+ed(1)-3));
+            ed = strfind(filetext(beg:end),'RMS Misfit:'); 
+            if numel(beg) == 0 || numel(ed) == 0
+                output.alpha = NaN;
+            else
+                output.alpha = str2double(filetext(beg(end)+6:beg(end)+ed(1)-3));
+            end
             
             output.Cov = (sens + output.alpha * output.R)^(-1);
             output.Res = output.Cov * sens;
+
+% output.Wd=[];
+% output.Cov=[];
+% output.Res=[];
 
             % Compute the zone inside, that is removing the buffer zone
 %             output.inside=false( d.numnp_y-1, d.numnp_x-1);

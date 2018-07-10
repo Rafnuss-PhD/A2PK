@@ -56,20 +56,23 @@ tic
 rng(gen.seed)
 
 %% * 2. *construction of the grid_gen*
+
+cell2vertex         = @(x) [x(1)-(x(2)-x(1))/2  x(1:end-1)+diff(x)/2  x(end)+(x(end)-x(end-1))/2];
+vertex2cell         = @(x) x(1:end-1) + diff(x)/2; 
+
 grid_gen.nx     = gen.nx;
 grid_gen.ny     = gen.ny;
 grid_gen.nxy    = grid_gen.nx*grid_gen.ny; % total number of cells
 
-grid_gen.dx=gen.xmax/(grid_gen.nx-1);
-grid_gen.dy=gen.ymax/(grid_gen.ny-1);
+grid_gen.dx=gen.xmax/(grid_gen.nx);
+grid_gen.dy=gen.ymax/(grid_gen.ny);
 
-grid_gen.x=linspace(0, gen.xmax, grid_gen.nx); % coordinate of cells center
-grid_gen.y=linspace(0, gen.ymax, grid_gen.ny);
+grid_gen.x_n    = linspace(0, gen.xmax, grid_gen.nx+1);
+grid_gen.y_n    = linspace(0, gen.ymax, grid_gen.ny+1);
+
+grid_gen.x= vertex2cell(grid_gen.x_n);% coordinate of cells center
+grid_gen.y= vertex2cell(grid_gen.y_n);
 grid_gen.xy=1:grid_gen.nxy;
-
-cell2vertex         = @(x) [x(1)-(x(2)-x(1))/2  x(1:end-1)+diff(x)/2  x(end)+(x(end)-x(end-1))/2];
-grid_gen.x_n        = cell2vertex(grid_gen.x);
-grid_gen.y_n        = cell2vertex(grid_gen.y);
 
 [grid_gen.X, grid_gen.Y] = meshgrid(grid_gen.x,grid_gen.y); % matrix coordinate
 
@@ -142,7 +145,7 @@ if gen.plotit
     
     figure(1);clf; subplot(2,1,1); hold on;axis equal; title('Electrical Conductivity [mS/m]');xlabel('x [m]'); ylabel('y [m]')
     imagesc(grid_gen.x,grid_gen.y,sigma_true_t);colorbar;  scatter(sigma.x,sigma.y,sigma.d); legend({'Sampled location'})
-    subplot(2,1,2); hold on; title('Histogram'); xlabel('Electrical Conductivity [mS/m]');
+    subplot(2,1,2); hold on; title('Histogram'); xlabel('Electrical Conductivity [mS/m]'); set(gca,'Ydir','reverse')
     ksdensity(sigma_true_t(:)); ksdensity(sigma_dt(:)); legend({'True','Sampled'})
     
     [gamma_x, gamma_y] = variogram_gridded_perso(sigma_true_t);
@@ -170,16 +173,17 @@ x_plus              = logspace(log10(grid_gen.x_n(end)-grid_gen.x_n(end-1)), log
 y_plus              = logspace(log10(grid_gen.y_n(end)-grid_gen.y_n(end-1)), log10(10*(grid_gen.x_n(end)-grid_gen.x_n(1))), f.n_plus);
 f.grid.x_n          = sort([grid_gen.x_n(1)-x_plus grid_gen.x_n grid_gen.x_n(end)+x_plus]); 
 f.grid.y_n          = sort([grid_gen.y_n grid_gen.y_n(end)+y_plus]);
-f.grid.x            = f.grid.x_n(1:end-1) + diff(f.grid.x_n)/2; 
-f.grid.y            = f.grid.y_n(1:end-1) + diff(f.grid.y_n)/2;
+f.grid.x            = vertex2cell(f.grid.x_n); 
+f.grid.y            = vertex2cell(f.grid.y_n); 
 f.grid.inside       = false( numel(f.grid.y), numel(f.grid.x));
 f.grid.inside( 1:end-f.n_plus, f.n_plus+1:end-f.n_plus) = true;
 
 % Electrod config
 elec                = gen.elec;
-[~,min_spacing]     = min(abs(grid_gen.x-elec.spacing));
-elec.spacing        = grid_gen.x(min_spacing);
-f.elec_spacing      = min_spacing-1;
+% [~,min_spacing]     = min(abs(grid_gen.x-elec.spacing));
+% elec.spacing        = grid_gen.x(min_spacing);
+elec.spacing        = round(elec.spacing/grid_gen.dx)*grid_gen.dx; % in meter
+f.elec_spacing      = elec.spacing/grid_gen.dx; % in grid.x spacing.
 f.elec_id           = f.n_plus+f.elec_spacing*(elec.bufzone)+1 : f.elec_spacing : numel(f.grid.x_n)-f.n_plus-elec.bufzone*f.elec_spacing;
 elec.x              = f.grid.x_n(f.elec_id);
 elec.n              = numel(elec.x);
@@ -192,15 +196,30 @@ elec                = config_elec(elec); % create the data configuration.
 
 % Inverse Grid
 i = gen.i;
-i.elec_spacing      = floor(i.grid.nx/(elec.n+2*elec.bufzone-1));
+tmp_des = 1:f.elec_spacing;
+tmp_des = tmp_des(rem(f.elec_spacing,tmp_des)==0);
+[~,tmp_id] = min( abs( tmp_des.*(elec.n+2*elec.bufzone-1) - i.grid.nx ) );
+i.elec_spacing      = tmp_des(tmp_id);
 i.grid.x_n          = grid_gen.x_n(1:f.elec_spacing/i.elec_spacing:end);
-i.grid.y_n          = logspace(log10(grid_gen.y_n(1)+5),log10(grid_gen.y_n(end)+5),grid_gen.ny+1)-5; % cell center
+% 1. linear
+% i.grid.y_n          = grid_gen.y_n(1:floor((grid_gen.ny-1)/(i.grid.ny-1)):end);
+% 2. log? power?
+% fun = @(a,r,n,s) a*(1-r^n)/(1-r) - s;
+% fun2 = @(r) fun(2*diff(grid_gen.y_n(1:2)),r,gen.i.grid.ny,grid_gen.y_n(end)-grid_gen.y_n(1));
+% r = fsolve(fun2,1.1);
+% y_n_dy = diff(grid_gen.y_n(1:2))*r.^(0:gen.i.grid.ny);
+% i.grid.y_n          = grid_gen.y_n(1)+cumsum([0 y_n_dy]);
+% 3.log
+% i.grid.y_n          = logspace(log10(grid_gen.y_n(1)+5),log10(grid_gen.y_n(end)+5),grid_gen.ny+1)-5; % cell center
+% 4. r^2 y = a*ind^2 + b*ind + c;
+tmp_x               = [1 1 ; i.grid.ny^2 i.grid.ny ] \ [grid_gen.dy;grid_gen.y_n(end)];
+i.grid.y_n          = tmp_x(1)*(0:i.grid.ny).^2 + tmp_x(2)*(0:i.grid.ny);
 x_plus              = logspace(log10(i.grid.x_n(end)-i.grid.x_n(end-1)), log10(10*(i.grid.x_n(end)-i.grid.x_n(1))), i.n_plus);
 y_plus              = logspace(log10(i.grid.y_n(end)-i.grid.y_n(end-1)), log10(10*(i.grid.x_n(end)-i.grid.x_n(1))), i.n_plus);
 i.grid.x_n          = sort([i.grid.x_n(1)-x_plus i.grid.x_n i.grid.x_n(end)+x_plus]); 
 i.grid.y_n          = sort([i.grid.y_n i.grid.y_n(end)+y_plus]);
-i.grid.x            = i.grid.x_n(1:end-1) + diff(i.grid.x_n)/2; 
-i.grid.y            = i.grid.y_n(1:end-1) + diff(i.grid.y_n)/2;
+i.grid.x            = vertex2cell(i.grid.x_n); 
+i.grid.y            = vertex2cell(i.grid.y_n);
 i.elec_id           = find(sum(bsxfun(@eq,i.grid.x_n',elec.x),2))';
 i.grid.inside       = false( numel(i.grid.y), numel(i.grid.x));
 i.grid.inside( 1:end-i.n_plus, i.n_plus+1:end-i.n_plus) = true;
@@ -260,12 +279,12 @@ end
 % Inverse
 i.header            = 'Inverse';  % title of up to 80 characters
 i.job_type          = 1;
+i.inverse_type      = 1; 
 i.filepath          = filepath;
 i.readonly          = 0;
 i.alpha_aniso       = f.alpha_aniso;
 i.tolerance         = 1;
 i.rho_avg           = f.rho_avg;
-i.max_iterations    = 10;
 i                   = Matlat2R2(i,elec);
 
 %% Ouput Sigma
@@ -295,7 +314,7 @@ gen.elec        = elec;
 
 if gen.saveit
     filename = ['data_gen/GEN-', gen.name ,'_', datestr(now,'yyyy-mm-dd_HH-MM'), '.mat'];
-    save(filename, 'phi_true', 'sigma_true', 'Sigma','grid_gen', 'gen') %'sigma',
+    save(filename, 'phi_true', 'sigma_true', 'Sigma','grid_gen', 'gen','-v7.3') %'sigma',
 end
 
 fprintf('  ->  finish in %g sec\n', toc)
