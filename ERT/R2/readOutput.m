@@ -73,8 +73,8 @@ if d.job_type == 1 % inverse solution
                     end
                 end
             end
-            
-            % Data Weight
+           
+           % Data Weight
             data=importdata([d.filepath dataset '_err.dat']);
             diagWd=zeros(n_obs,1);
             diagWd(sum(abs(output.J))~=0) = data.data(:,5);

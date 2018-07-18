@@ -256,7 +256,7 @@ fid=fopen([f.filepath 'R2_forward.dat'],'w');
 A2=[A{:}];
 fprintf(fid,'%d\n',A2(1,1));
 for u=2:size(A2,1)
-    fprintf(fid,'%d %d %d %d %d %f %f\n',A2(u,:));
+    fprintf(fid,'%d %d %d %d %d %.10e %.5f\n',A2(u,:));
 end
 fclose(fid);
 

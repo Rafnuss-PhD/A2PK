@@ -122,6 +122,21 @@ for i=1:numel(Sec.d)
     Sec.dnorm(i) = Res(~gen.i.grid.inside)'*Sec.d(~gen.i.grid.inside);
 end
 
+% U = zeros(numel(Sec.d), numel(Prim.d));
+% for i=1:numel(Sec.d)
+%     Res = zeros(numel(Sec.y),numel(Sec.x));
+%     Res(i)=1;
+%     F = griddedInterpolant({Sec.y,Sec.x},Res,'linear');
+%     res_t = F({Prim.y,Prim.x});
+%     U(i,:) = res_t(:) ./sum(res_t(:));
+% end
+% U(isnan(U))=0;
+% 
+% 
+% G2 =Sigma.res*U;
+% imagesc(reshape(G * Prim.d(:), numel(Sec.y), numel(Sec.x)))
+% figure; imagesc(reshape(G2 * Prim.d(:), numel(Sec.y), numel(Sec.x)))
+% figure; imagesc(reshape((G2*Prim.d(:)-G * Prim.d(:))./(G * Prim.d(:)), numel(Sec.y), numel(Sec.x)))
 
 % View Resolution matrix
 % OLD large grid: i=[1838 4525 8502]; th=.05; x_lim=[16 25; 35 65; 90 99]; y_lim=[-.12 7; -.12 19.57; -.12 8]; ccaxis=[-.02 .02; -.002 .002; -.01 .01];
@@ -195,15 +210,15 @@ parfor ij=1:numel(Prim.x)*numel(Prim.y)
      W(ij,:) = CCainv * CCb(:,ij);
      S(ij) =  Cz0 - W(ij,:) * CCb(:,ij);
 end
-save(['result/' fieldname '_cond'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
+% save(['result/' fieldname '_cond'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
 % load(['result/' fieldname '_cond'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
 % save(['result/' fieldname '_cond_noHD'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
 % load(['result/' fieldname '_cond_noHD'],'W','S','Prim_pt','G','Nscore','Sec','Prim')
 
 
 % Compute the Kriging map
-zh = reshape( W * [Sec.d(:)-Sec.dnorm(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));numel(Prim.y), numel(Prim.x);
-zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
+zh = reshape( W * [Sec.d(:)-Sec.dnorm(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
+zhtest = reshape( W * [Test_Sec_d(:)-Sec.dnorm(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
 
 figure(5); clf;   colormap(viridis())
 subplot(2,1,1);surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
@@ -211,6 +226,14 @@ view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); c
 subplot(2,1,2);surf(Prim.x,Prim.y,S,'EdgeColor','none','facecolor','flat'); caxis([0 1])
 view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate Error Variance')
 %export_fig -eps 'Krig'
+
+figure(55); clf;   colormap(viridis())
+subplot(3,1,1);surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
+view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); title('Kriging Estimate')
+subplot(3,1,2);surf(Prim.x,Prim.y,zhtest,'EdgeColor','none','facecolor','flat');
+view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y');  title('Kriging Estimate ')
+subplot(3,1,3);surf(Prim.x,Prim.y,zh-zhtest,'EdgeColor','none','facecolor','flat');
+view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Error Kriging Estimate')
 
 figure(51); clf;
 S(S<=eps)=eps;
@@ -226,14 +249,13 @@ axis equal tight; box on; xlabel('x');ylabel('y'); set(gca,'Ydir','reverse'); ax
 %% Simulation of the Area-to-point Kriging 
 rng('shuffle');
 
-parm.n_real = 500;
+parm.n_real = 30;
 covar = kriginginitiaite(gen.covar);
 zcs=nan(numel(Prim.y), numel(Prim.x),parm.n_real);
 z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
 for i_real=1:parm.n_real
-    zs(:,:,i_real) = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
-end
-    %zs = fftma_perso(gen.covar, grid_gen);
+    % zs(:,:,i_real) = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
+    zs = fftma_perso(gen.covar, grid_gen);
     zhs = W * [G * zs(:) ; zs(Prim_pt.id)./1.3];
     r = zh(:) + (zs(:) - zhs(:));
     zcs(:,:,i_real) = reshape( r, numel(Prim.y), numel(Prim.x));
@@ -292,17 +314,17 @@ end
 
 figure(9);clf;
 subplot(2,1,1);  hold on; 
-h1=plot(Prim.x(1:2:end),vario_x(:,1:2:end)','b','color',[.5 .5 .5]);
-h2=plot(Prim.x,vario_prim_x,'-r','linewidth',2);
-h3=plot(Prim.x,1-covar.g(Prim.x*covar.cx(1)),'--k','linewidth',2);
-xlim([0 60]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)')
+h1=plot(Prim.x(1:2:end)-Prim.x(1),vario_x(:,1:2:end)','b','color',[.5 .5 .5]);
+h2=plot(Prim.x-Prim.x(1),vario_prim_x,'-r','linewidth',2);
+h3=plot(Prim.x-Prim.x(1),1-covar.g((Prim.x-Prim.x(1))*covar.cx(1)),'--k','linewidth',2);
+xlim([0 60]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)'); ylim([0 1.5])
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
 subplot(2,1,2); hold on; 
-h1=plot(Prim.y,vario_y','b','color',[.5 .5 .5]);
-h2=plot(Prim.y,vario_prim_y,'-r','linewidth',2);
-h3=plot(Prim.y,1-covar.g(Prim.y*covar.cx(4)),'--k','linewidth',2);
+h1=plot(Prim.y(1:2:end)-Prim.y(1),vario_y(:,1:2:end)','b','color',[.5 .5 .5]);
+h2=plot(Prim.y-Prim.y(1),vario_prim_y,'-r','linewidth',2);
+h3=plot(Prim.y-Prim.y(1),1-covar.g((Prim.y-Prim.y(1))*covar.cx(4)),'--k','linewidth',2);
 xlim([0 6]); xlabel('Lag-distance h_y ');ylabel('Variogram \gamma(h_y)')
-legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
+legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model'); ylim([0 1.2])
 % export_fig -eps 'Vario'
 
 
@@ -330,7 +352,7 @@ legend([h1 h2 h3 h4],'500 realizations','True field','Theorical Model','Sampled 
 % parm.n_real=12;
 fsim_pseudo=nan(numel(gen.f.output.pseudo),parm.n_real);
 fsim_resistance=nan(numel(gen.f.output.resistance),parm.n_real);
-rho = 1000./Nscore.inverse(zs);
+rho = 1000./Nscore.inverse(zcs);
 
 % fieldname= 'AsSumbitted_2018-06-27_10-07';
 
@@ -346,7 +368,7 @@ f.rho = F({f.grid.y, f.grid.x});
 for i_real=1:parm.n_real
     f.filepath          = ['data_gen/IO-file-' num2str(i_real) '/'];
     mkdir(f.filepath)
-    copyfile('R2/R2.exe',[f.filepath 'R2.exe'])
+    %copyfile('R2/R2.exe',[f.filepath 'R2.exe'])
     copyfile(['result/' fieldname '_IO-file/forward/electrodes.dat'],[f.filepath 'electrodes.dat'])
     copyfile(['result\' fieldname '_IO-file\forward\protocol.dat'],[f.filepath 'protocol.dat'])
 end
@@ -374,22 +396,16 @@ end
 
 
 figure(11); hold on;
-histogram(WRMSE); histogram(WRMSE_uncond); plot([1 1],[0 100])
+histogram(WRMSE); histogram(WRMSE_uncond); plot([1 1],[0 100]); set(gca, 'XScale', 'log')
 xlabel('WRMSE'); ylabel('Histogram'); legend('Conditional realizations', 'Unconditional realizations', 'True initial field')
 % export_fig -eps 'misfit-hist'
 
 
 figure(12);clf; colormap(viridis());c_axis=[min(gen.f.output.pseudo(:)) max(gen.f.output.pseudo(:))]; clf;
-subplot(3,1,1); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],gen.f.output.pseudo,'filled');set(gca,'Ydir','reverse');caxis(c_axis);  xlim([0 100]); ylim([0 16]); colorbar('southoutside');
-subplot(3,1,2); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse');caxis(c_axis); colorbar('southoutside');xlim([0 100]); ylim([0 16])
-subplot(3,1,3); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],std(fsim_pseudo,[],2)./mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse'); colorbar('southoutside');xlim([0 100]); ylim([0 16])
-% export_fig -eps 'pseudo-sec'
-
-figure(13);clf;colormap(viridis()); c_axis=[min(gen.f.output.pseudo(:)) max(gen.f.output.pseudo(:))]; clf;
-subplot(2,1,1); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],(mean(fsim_pseudo,2)-gen.f.output.pseudo)./gen.f.output.pseudo,'filled');set(gca,'Ydir','reverse'); colorbar('southoutside');xlim([0 100]); ylim([0 16])
-caxis([-.05 .1])
-subplot(2,1,2); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],(gen.i.output.pseudoCalc-gen.f.output.pseudo)./gen.f.output.pseudo,'filled');set(gca,'Ydir','reverse'); colorbar('southoutside');xlim([0 100]); ylim([0 16])
-caxis([-.05 .1])
+subplot(4,1,1); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],gen.f.output.pseudo,'filled');set(gca,'Ydir','reverse');caxis(c_axis);  xlim([0 100]); ylim([0 16]); colorbar('southoutside');
+subplot(4,1,2); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse');caxis(c_axis); colorbar('southoutside');xlim([0 100]); ylim([0 16])
+subplot(4,1,3); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],std(fsim_pseudo,[],2)./mean(fsim_pseudo,2),'filled');set(gca,'Ydir','reverse'); colorbar('southoutside');xlim([0 100]); ylim([0 16])
+subplot(4,1,4); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],(mean(fsim_pseudo,2)-gen.f.output.pseudo)./gen.f.output.pseudo,'filled');set(gca,'Ydir','reverse'); colorbar('southoutside');xlim([0 100]); ylim([0 16])
 % export_fig -eps 'pseudo-sec-err'
 
 figure(23); clf; hold on; axis equal tight;
@@ -400,8 +416,8 @@ scatter(gen.i.output.pseudoCalc,gen.f.output.pseudo,'.r');
 scatter(mean(fsim_pseudo,2),gen.f.output.pseudo,'.g');
 x=[floor(min(fsim_pseudo(:))) ceil(max(fsim_pseudo(:)))];
 plot(x,x,'-r'); 
-plot(x,x-x*3*gen.i.b_wgt,'--r'); 
-plot(x,x+x*3*gen.i.b_wgt,'--r'); 
+plot(x,x-x*gen.i.b_wgt,'--r'); 
+plot(x,x+x*gen.i.b_wgt,'--r'); 
 xlabel('Apparent resistivity measured from simulated fields');
 ylabel('Apparent resistivity measured from true fields');
 set(gca, 'YScale', 'log'); set(gca, 'XScale', 'log')
@@ -409,85 +425,80 @@ set(gca, 'YScale', 'log'); set(gca, 'XScale', 'log')
 
 
 
-%% Forward of upscaled 
+%% Invertion on fine scale grid
 
-filepath='.\data_gen\IO-file-inversion-scaleoftrue\';
+i               = gen.i;
+i.grid          = gen.f.grid;
+i.grid.nx       = numel(i.grid.x);
+i.grid.ny       = numel(i.grid.y);
+i.elec_spacing  = gen.f.elec_spacing;
+i.elec_id       = gen.f.elec_id;
 
-
-f={};
-f.res_matrix        = gen.f.res_matrix;
-f.grid              = gen.i.grid;    
-f.header            = 'Forward';  % title of up to 80 characters
-f.job_type          = 0;
-f.filepath          = ['data_gen/IO-file-inversion-CoarseScale/'];
-f.readonly          = 0;
-f.alpha_aniso       = gen.f.alpha_aniso;
-f.elec_spacing      = gen.f.elec_spacing;
-f.elec_id           = gen.i.elec_id;
-f.rho               = i.output.res;
-f.num_regions       = 1+numel(f.rho);
-f.rho_min           = gen.f.rho_min;
-f.rho_avg           = gen.f.rho_avg;
-f.rho_max           = gen.f.rho_max;
-
-mkdir(f.filepath)
-f                   = Matlat2R2(f,gen.elec); % write file and run forward modeling
-misfit = sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
-
-misfit = sqrt( mean (((f.output.pseudo - i.output.pseudoObs) ./ (i.output.pseudoObs)).^2 ))
-
-
-
-%% Inverting true model 1 iter vs inverting on fine scale grid
-
-i={};
-i.grid       = gen.f.grid; %
-i.grid.nx    = numel(i.grid.x);
-i.grid.ny    = numel(i.grid.y);
-i.n_plus        = 10;    
-i.res_matrix    = 3;
-
-i.elec_spacing      = gen.f.elec_spacing;
-i.elec_id           = gen.f.elec_id;
-
-
-i.a_wgt = 0;%0.01;
-i.b_wgt = 0.02;%0.02;
-
-% fid = fopen([gen.f.filepath 'R2_forward.dat'],'r');
-% A = textscan(fid,'%f %f %f %f %f %f %f');fclose(fid);
-% A{end-1}(2:end) = gen.f.output.resistancewitherror;
-% fid=fopen([gen.f.filepath 'R2_forward.dat'],'w');
-% A2=[A{:}];
-% fprintf(fid,'%d\n',A2(1,1));
-% for u=2:size(A2,1)
-%     fprintf(fid,'%d %d %d %d %d %f %f\n',A2(u,:));
-% end
-% fclose(fid);
-
-i.header            = 'Inverse';  % title of up to 80 characters
-i.job_type          = 1;
-i.filepath          = 'data_gen/IO-file/';
-i.readonly          = 0;
-i.alpha_aniso       = gen.f.alpha_aniso;
-i.tolerance         = 1;
-i.rho_avg           = gen.f.rho_avg;
-i.inverse_type      =  1;
-
-% on fine scale
-i.max_iterations = 10;
 i_fine_scale = Matlat2R2(i,gen.elec);
 
-% on true model
+% save(['result/' fieldname '_i_fine_scale'],'i_fine_scale','-v7.3')
+% load(['result/' fieldname '_i_fine_scale'])
+
+
+%% Inversion base on true model
+
+i               = gen.i;
+i.grid          = gen.f.grid;
+i.grid.nx       = numel(i.grid.x);
+i.grid.ny       = numel(i.grid.y);
+i.elec_spacing  = gen.f.elec_spacing;
+i.elec_id       = gen.f.elec_id;
+
+fid = fopen([gen.f.filepath 'R2_forward.dat'],'r');
+A = textscan(fid,'%f %f %f %f %f %f %f');fclose(fid);
+A{end-1}(2:end) = (1+.02*randn(numel(gen.f.output.resistance),1)).*gen.f.output.resistancewitherror;
+fid=fopen([gen.f.filepath 'R2_forward.dat'],'w');
+A2=[A{:}];
+fprintf(fid,'%d\n',A2(1,1));
+for u=2:size(A2,1)
+    fprintf(fid,'%d %d %d %d %d %.9e %.5f\n',A2(u,:));
+end
+fclose(fid);
+
 i.max_iterations = 1;
-i.tolerance         = 1.4;
-i.inverse_type      =  0;
+i.tolerance = 1.36;
+
 i.rho               = mean(1000./sigma_true(:))*ones( numel(i.grid.y), numel(i.grid.x));
 i.rho(i.grid.inside)= 1000./sigma_true; % f({grid_Rho.y,grid_Rho.x});
 
 i_true_mod = Matlat2R2(i,gen.elec);
 
-Jrfs = reshape(sum(abs(i_fine_scale.output.J),2),size(Prim.d_full));
+% save(['result/' fieldname '_i_true_mod'],'i_true_mod','-v7.3')
+% load(['result/' fieldname '_i_true_mod'])
+
+
+ 
+%% forward response based on the fine-scale inversion
+
+i =  i_fine_scale;
+i =  i_true_mod;
+
+f=gen.f;
+f.rho = 1000./flipud(i.output.res);
+f = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+
+Nscore.forward = @(x) (log(x./43)/1.4-gen.mu)./gen.std;
+Nscore.inverse = @(x) 43.*exp(1.4*(x.*gen.std+gen.mu));
+% Sec_d = Nscore.forward(1000./flipud(i.output.res));
+Prim.d_full = Nscore.forward(1000./gen.f.rho);
+Prim.d = reshape(Prim.d_full(gen.f.grid.inside),grid_gen.ny,grid_gen.nx);
+% Prim.x = grid_gen.x; Prim.y = grid_gen.y; 
+% [Prim.X, Prim.Y] = meshgrid(Prim.x, Prim.y);
+
+
+ztrue = reshape(i.output.Res * Prim.d_full(:),i.grid.ny,i.grid.nx);
+f.rho = 1000./Nscore.inverse(ztrue);
+f = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+
+
+Jrfs = reshape(sum(abs(i.output.J),2),size(Prim.d_full));
 Jrtm = reshape(sum(abs(i_true_mod.output.J),2),size(Prim.d_full));
 
 figure;
@@ -497,6 +508,62 @@ subplot(3,1,3); surf(gen.f.grid.x, gen.f.grid.y, log(Jrtm)-log(Jrfs),'EdgeColor'
 figure;
 subplot(2,1,1); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],mean(i_fine_scale.output.J,1),'filled'); set(gca,'ydir','reverse')
 subplot(2,1,2); scatter(gen.f.pseudo_x,gen.f.pseudo_y,[],mean(i_true_mod.output.J,1),'filled'); set(gca,'ydir','reverse')
+
+
+%% Forward of upscaled 
+
+filepath='.\data_gen\IO-file-inversion-scaleoftrue\';
+
+f=gen.f;
+f.grid              = gen.i.grid;    
+f.elec_id           = gen.i.elec_id;
+
+% f(Z^{est})
+f.rho               = 1000./Sigma.d;
+f.filepath          = ['data_gen/IO-file-forward-tomogram/'];
+mkdir(f.filepath)
+f                   = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+sqrt(mean(((f.output.pseudo - gen.i.output.pseudoObs)./(gen.i.output.pseudoObs) ).^2))
+
+
+% f( RUz^{true} )
+f.rho = 1000./Nscore.inverse(Test_Sec_d);
+f = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+sqrt(mean(((f.output.pseudo - gen.i.output.pseudoObs)./(gen.i.output.pseudoObs) ).^2))
+
+
+% f(Uz^{true})
+U = zeros(numel(Sec.d), numel(Prim.d));
+for i=1:numel(Sec.d)
+    Res = zeros(numel(Sec.y),numel(Sec.x));
+    Res(i)=1;
+    F = griddedInterpolant({Sec.y,Sec.x},Res,'linear');
+    res_t = F({Prim.y,Prim.x});
+    U(i,:) = res_t(:) ./sum(res_t(:));
+end
+U(isnan(U))=0;
+Uztrue = reshape(U*Prim.d(:),numel(Sec.y),numel(Sec.x));
+f.rho               = 1000./Sigma.d;
+f.rho(f.grid.inside) = 1000./Nscore.inverse(Uztrue(f.grid.inside));
+f = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+sqrt(mean(((f.output.pseudo - gen.i.output.pseudoObs)./(gen.i.output.pseudoObs) ).^2))
+
+
+
+
+%% Forward true field
+
+f=gen.f;
+F = griddedInterpolant({Sigma.y,Sigma.x},1000./Sigma.d,'linear');
+f.rho = F({f.grid.y, f.grid.x});
+f.rho(f.grid.inside)= 1000./sigma_true;
+f                   = Matlat2R2(f,gen.elec); % write file and run forward modeling
+sqrt( mean (((f.output.resistance - gen.f.output.resistancewitherror) ./ (gen.f.output.resistancewitherror)).^2 ))
+sqrt(mean(((f.output.pseudo - gen.i.output.pseudoObs)./(gen.i.output.pseudoObs) ).^2))
+
 
 
 %% Figure for Synthetic schema

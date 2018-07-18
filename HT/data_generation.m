@@ -42,12 +42,13 @@ assert(isfield(gen, 'nx'))
 assert(isfield(gen, 'ny'))
 if ~isfield(gen, 'method'); gen.method = 'Random'; end
 if ~isfield(gen, 'samp'); gen.samp = 2; end
-if ~isfield(gen, 'samp_n'); gen.samp_n = 1/100 * (2^gen.sx+1)*(2^gen.sy+1); end
+if ~isfield(gen, 'samp_n'); gen.samp_n = round(1/100 * gen.nx*gen.ny); end
 if ~isfield(gen, 'mu'); gen.mu = 0; end
 if ~isfield(gen, 'std'); gen.std = 1; end
 % Other
 if ~isfield(gen, 'plotit'); gen.plotit = 0; end
 if ~isfield(gen, 'saveit'); gen.saveit = 1; end
+if ~isfield(gen, 'forwardonly'); gen.saveit = 0; end
 if ~isfield(gen, 'name'); gen.name = ''; end
 if ~isfield(gen, 'seed'); gen.seed = 'default'; end
 if ~isfield(gen, 'plot'); gen.plot = true; end
@@ -174,16 +175,19 @@ f.rho_max           = max(R_true(:))*100;
 f                   = Matlat2R2(f,elec); % write file and run forward modeling
 
 
-if 0 && gen.saveit
+if gen.forwardonly 
     gen.Rho.f  = f;
     gen.Rho.elec        = elec;
     filename = ['data_gen/data/FOR-', gen.name ,'_', datestr(now,'yyyy-mm-dd_HH-MM'), '.mat'];
+    if gen.saveit
     save(filename, 'K_true', 'grid_gen', 'gen') %'sigma',
+    end
+    keyboard
 end
 
 % Add some error to the observation
 i.a_wgt = 0;%0.01;
-i.b_wgt = 0.01;
+i.b_wgt = 0.05;
 % var(R) = (a_wgt*a_wgt) + (b_wgt*b_wgt) * (R*R)
 f.output.resistancewitherror = i.a_wgt.*randn(numel(f.output.resistance),1) + (1+i.b_wgt*randn(numel(f.output.resistance),1)).*f.output.resistance;
 %f.output.resistancewitherror(f.output.resistancewitherror>0) = -f.output.resistancewitherror(f.output.resistancewitherror>0);

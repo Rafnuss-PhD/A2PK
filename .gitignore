@@ -1,6 +1,8 @@
 ERT/data_gen/*
 HT/data_gen/*
+HT/GW/*
 *.asv
+*.eps
 *result/
 *.mat
 

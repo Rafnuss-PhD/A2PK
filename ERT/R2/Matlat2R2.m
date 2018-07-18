@@ -62,13 +62,14 @@ if d.job_type == 0  % one value per grid cells in the inside grid plus a cst val
     d.value =  d.rho(:)' ;
 
 elseif d.job_type == 1 % for inversion, only one average value is given...
-    d.elem_1 = [1                          ];% 3461 3509 3557 3605 3653 3701 3749 3797];
-    d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1)];% 3472 3520 3568 3616 3664 3712 3760 3808];
-    d.value =  [d.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
+%     d.elem_1 = [1                          ];% 3461 3509 3557 3605 3653 3701 3749 3797];
+%     d.elem_2 = [(d.numnp_y-1)*(d.numnp_x-1)];% 3472 3520 3568 3616 3664 3712 3760 3808];
+%     d.value =  [d.rho_avg               ];% 10   10   10   10   10   10   10   10] ;
  
-%     d.elem_1 = 1:((d.numnp_y-1)*(d.numnp_x-1));
-%     d.elem_2 = 1:((d.numnp_y-1)*(d.numnp_x-1));
-%     d.value =  d.rho(:)' ;
+warning('check this')
+    d.elem_1 = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.elem_2 = 1:((d.numnp_y-1)*(d.numnp_x-1));
+    d.value =  d.rho(:)' ;
 end
 d.num_regions = numel(d.value);          % number of resistivity regions
 
@@ -78,7 +79,7 @@ end
 
 %% INVERSE SOLUTION
 if d.job_type==1 % inverse solution
-    % d.inverse_type      =  1;           % Inverse type: 0-pseudo-Marquardt, 1-regularised solution with linear filter (usual mode),
+    d.inverse_type      =  1;           % Inverse type: 0-pseudo-Marquardt, 1-regularised solution with linear filter (usual mode),
     d.target_decrease = 0;
     % 2-regularised type with quadratic filter, 3-qualitative solution or 4-blocked linear regularised type
     if d.mesh_type==4 || d.mesh_type==5 % quadrilateral mesh

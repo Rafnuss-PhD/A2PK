@@ -16,15 +16,14 @@ gen.ny = gen.ymax*2+1;
 % Generation parameter
 gen.samp                = 1;          % Method of sampling of K and g | 1: borehole, 2:random. For fromK or from Rho only
 gen.samp_n              = 0;          % number of well or number of point
-gen.covar(1).model      = 'k-bessel';
+gen.covar(1).model      = 'matern';
 gen.covar(1).alpha      = 0.5;
-gen.covar(1).range0     = [5 20]; 
+gen.covar(1).range0     = [4 16]; 
 gen.covar(1).azimuth    = 0;
 gen.covar(1).c0         = 1;
 gen.covar               = kriginginitiaite(gen.covar);
 gen.mu                  = 0.25;%0.27; % parameter of the first field. 
 gen.std                 = 0.05;%.05;
-gen.Rho.method          = 'R2'; % 'Paolo' (default for gen.method Paolo), 'noise', 'RESINV3D'
 
 % Electrical inversion
 gen.Rho.f ={};
@@ -33,6 +32,8 @@ gen.Rho.elec.spacing_y  = 1; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.bufzone_y  = 2; % number of electrod to skip 
 gen.Rho.elec.x_t        = 25; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.x_r        = [10 40]; % in unit [m] | adapted to fit the fine grid
+% gen.Rho.elec.x_t        = 10; % in unit [m] | adapted to fit the fine grid
+% gen.Rho.elec.x_r        = [11 12 15 20 25 30 40]; % in unit [m] | adapted to fit the fine grid
 gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
 gen.Rho.i.grid.nx       = (gen.nx-1)/2+1; % | adapted to fit the fine grid
 gen.Rho.i.grid.ny       = (gen.ny-1)/2+1; % log-spaced grid  | adapted to fit the fine grid
@@ -42,7 +43,7 @@ gen.Rho.i.res_matrix    = 3; % resolution matrix: 1-'sensitivity' matrix, 2-true
 gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
 gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
 gen.name                = '60x20';
-gen.seed                = 8;
+gen.seed                = 11;
 
 % Run the function
 fieldname = data_generation(gen);
@@ -52,14 +53,50 @@ fieldname = data_generation(gen);
 
 
 %% Reproducing Theim equation
+gen.xmax = 100; %total length in unit [m]
+gen.ymax = 100; %total hight in unit [m]
+gen.nx = gen.xmax*2+1;
+gen.ny = gen.ymax*2+1;
+
+% Generation parameter
+gen.covar(1).model      = 'matern';
+gen.covar(1).alpha      = 0.5;
+gen.covar(1).range0     = [4 16]; 
+gen.covar(1).azimuth    = 0;
+gen.covar(1).c0         = 1;
+gen.covar               = kriginginitiaite(gen.covar);
+gen.mu                  = (log10(10^-5)+4.97)/6.66;
+gen.std                 = 0;
+
+% Electrical inversion
+gen.Rho.f ={};
+gen.Rho.f.res_matrix    = 0;
+gen.Rho.elec.spacing_y  = 1; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.bufzone_y  = 30; % number of electrod to skip 
+gen.Rho.elec.x_t        = 50; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.x_r        = [51 52 55 60 75 90 100]; % in unit [m] | adapted to fit the fine grid
+gen.Rho.elec.config_max = 6000; % number of configuration of electrode maximal 
+gen.Rho.i.grid.nx       = (gen.nx-1)/2+1; % | adapted to fit the fine grid
+gen.Rho.i.grid.ny       = (gen.ny-1)/2+1; % log-spaced grid  | adapted to fit the fine grid
+gen.Rho.i.res_matrix    = 3;
+
+% Other parameter
+gen.forwardonly         = 1;
+gen.plotit              = true;      % display graphic or not (you can still display later with |script_plot.m|)
+gen.saveit              = true;       % save the generated file or not, this will be turn off if mehod Paolo or filename are selected
+gen.name                = '100x100';
+gen.seed                = 11;
+
+% Run the function
+fieldname = data_generation(gen);
+
 % Uniform K, 1 pumping well and 3 measuring well separated by 10 m each.
-load('data_gen/data/FOR-60x20_2018-02-27_09-34.mat')
+load('result/FOR-100x100_2018-04-04_14-23.mat')
 
 % Thiem equation
 % 
 % $$h_{2}-h_{1}={\frac {Q}{2\pi b K}}\ln \left({\frac {r_{1}}{r_{2}}}\right)$$
 % 
-
 
 uex = unique(gen.Rho.elec.X(gen.Rho.elec.data(:,1)));
 id = bsxfun(@eq,gen.Rho.elec.X(gen.Rho.elec.data(:,1))',uex );
@@ -83,55 +120,64 @@ disp(-(dh+Q/(2*pi*b*K).*log(dr))./(Q/(2*pi*b*K).*log(dr))*100)
 % $$h_{2}-h_{1}={\frac {Q}{4\pi K}}\ln \left({\frac {1}{r_{2}} - \frac {1}{r_{1}}}\right)$$
 
 
-[~,id] = min((gen.Rho.elec.Y(gen.Rho.elec.data(:,3))-30).^2);
-id = gen.Rho.elec.Y(gen.Rho.elec.data(:,3))==gen.Rho.elec.Y(gen.Rho.elec.data(id,3));
+[~,id0] = min((gen.Rho.elec.Y(gen.Rho.elec.data(:,3))-50).^2);
+id = gen.Rho.elec.Y(gen.Rho.elec.data(:,3))==gen.Rho.elec.Y(gen.Rho.elec.data(id0,3));
 h = gen.Rho.f.output.resistance(id);
 
 x=gen.Rho.elec.X(gen.Rho.elec.data(id,1));
 y=gen.Rho.elec.Y(gen.Rho.elec.data(id,1));
-x0=gen.Rho.elec.X(gen.Rho.elec.data(id,3));
-y0=gen.Rho.elec.Y(gen.Rho.elec.data(id,3));
+x0=gen.Rho.elec.X(gen.Rho.elec.data(id0,3));
+y0=gen.Rho.elec.Y(gen.Rho.elec.data(id0,3));
 
 figure(2); hold on;
 scatter(x, y,[],log(h),'filled')
 plot(x0,y0,'xk')
+rectangle('Position',[0 0 gen.xmax gen.ymax])
+
 
 Q=1;
 K=mean(K_true(:));
 r=sqrt( (x-x0).^2 + (y-y0).^2 );
-R= 5; H=mean(h(r==R));
-ht = -Q/(4*pi*K).*(-1./r+1/R) + H;
+
+theim = @(Q,K,hmax,r) -Q/(4*pi*K).*(1./Inf-1./r) + hmax;
+
+rmse = @(x) sqrt( sum( ( theim(Q,K,x,r) - h ).^2 ) );
+h0 = fminsearch(rmse,min(h));
+
 
 figure; hold on;
 scatter3(x,y,h,'.')
-scatter3(x,y,ht,'.')
+scatter3(x,y,theim(Q,K,h0,r),'.')
+rectangle('Position',[0 0 gen.xmax gen.ymax]); view(3)
 
 
-%% Inversion
-fieldname='GEN-60x20_2018-03-12_15-49';
-load(['data_gen/data/' fieldname '.mat'])
+R = sqrt( (grid_gen.X-x0).^2 + (grid_gen.Y-y0).^2 );
+
+figure; hold on;
+s=surf(grid_gen.X, grid_gen.Y, theim(Q,K,h0,R));
+scatter3(x,y,h,'.k')
+s.EdgeColor='none';
+set(gca,'zscale','log')
+xlabel('X [m]'); ylabel('Y [m]'); zlabel('Head [log-m]');
+legend({'Analytical solution','Observations'})
+
+
+
+
+
+%% Testing other geostat param
+
+fieldname='GEN-60x20_2018-03-13_14-26';
+load(['result/' fieldname '.mat'])
 addpath('../functions','R2');
 
 % Normal Score based on known distribution of Prim and Sec
 Nscore.forward = @(x) ( (log10(x)+4.97)./6.66 - gen.mu)./gen.std;
-Nscore.inverse = @(x) 6.66*10^(x.*gen.std+gen.mu)-4.97;
+Nscore.inverse = @(x) 10.^(6.66*(x.*gen.std+gen.mu)-4.97); 
 Sec=K; 
 Sec.d = Nscore.forward(Sec.d);
 Prim.d = Nscore.forward(K_true);
 Prim.x = grid_gen.x; Prim.y = grid_gen.y; Prim.X = grid_gen.X; Prim.Y = grid_gen.Y;
-
-
-% Figure of intial data
-figure(1); clf;c_axis=[ min(Prim.d(:)) max(Prim.d(:)) ];
-subplot(2,1,1);imagesc(grid_gen.x, grid_gen.y, Prim.d); caxis(c_axis); title('True field'); axis tight equal; 
-subplot(2,1,2); hold on;
-imagesc(Sec.x, Sec.y, Sec.d); title('Inverted field'); box on;colormap(viridis()); axis tight equal;set(gca,'Ydir','reverse')
-plot(gen.Rho.elec.x_t,gen.Rho.elec.y,'or')
-plot(gen.Rho.elec.x_r(1),gen.Rho.elec.y,'xb')
-plot(gen.Rho.elec.x_r(2),gen.Rho.elec.y,'xb')
-% export_fig -eps 'Prim_and_sec'
-
-
 
 % Built the matrix G which link the true variable Prim.d to the measured coarse scale d
 G = zeros(numel(Sec.d), numel(Prim.d));
@@ -142,66 +188,140 @@ for i=1:numel(Sec.d)
     G(i,:) = res_t(:) ./sum(res_t(:));
 end
 
-Test_Sec_d = reshape(G * Prim.d(:), numel(Sec.y), numel(Sec.x));
-figure(4); clf; colormap(viridis())
-subplot(3,1,1);
-surface(Sec.X,Sec.Y,Sec.d,'EdgeColor','none','facecolor','flat'); 
-view(2); set(gca,'Ydir','reverse'); caxis([-1.5 1.5]); axis equal tight; box on; xlabel('x');ylabel('y'); colorbar; title('Inverted field Z^{est}')
-subplot(3,1,2);surface(Sec.X,Sec.Y,Test_Sec_d,'EdgeColor','none','facecolor','flat'); 
-view(2); set(gca,'Ydir','reverse');  caxis([-1.5 1.5]);axis equal tight; box on; xlabel('x');ylabel('y'); colorbar; title('G-transform of the true field Gz^{true}')
-subplot(3,1,3);surface(Sec.X,Sec.Y,Test_Sec_d-Sec.d,'EdgeColor','none','facecolor','flat'); 
-view(2); set(gca,'Ydir','reverse');  axis equal tight; box on; xlabel('x');ylabel('y');colorbar;  title('Error Gz^{true}-Z^{est}')
-% export_fig -eps 'SecvsTestSecD'
+
+covar = gen.covar;
+covar.range0 = covar.range0/2;
+covar.alpha = covar.alpha/2;
+covar = kriginginitiaite(covar);
+
+plot(Prim.x,1-covar.g(Prim.x*covar.cx(1)))
+xlim([0 50])
+
+% Compute the weightings matrix
+W = covar2W(covar,Prim,Sec,G,Prim_pt,Cmt);
+
+% save(['result/' fieldname '_cond_covar_rx2'],'W','Prim_pt','G','Nscore','Sec','Prim','covar')
+save(['result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim','covar')
 
 
-% Generate a sampling
-Prim_pt = sampling_pt(Prim,Prim.d,2,0);
+% Load all files
+listing = dir(['result/' fieldname '_cond*']);
+
+parm.n_real = 30;
+err=nan(numel(listing),parm.n_real);
+
+for i_l = 1:numel(listing)
+    
+    % Load
+    load([listing(i_l).folder '\' listing(i_l).name]);
+    Nscore.inverse = @(x) 10.^(6.66*(x.*gen.std+gen.mu)-4.97);
+    
+    % Compute the Kriging map
+    zh = reshape( W * [Sec.d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
+
+    % Compute the Realizations
+    zcs=nan(numel(Prim.y), numel(Prim.x),parm.n_real);
+    z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
+    for i_real=1:parm.n_real
+        zs = fftma_perso(covar, struct('x',Prim.x,'y',Prim.y));
+        zhs = W * [G * zs(:) ; zs(Prim_pt.id)./1.3];
+        r = zh(:) + (zs(:) - zhs(:));
+        zcs(:,:,i_real) = reshape( r, numel(Prim.y), numel(Prim.x));
+        z(:,:,i_real)=reshape(G*r(:), numel(Sec.y), numel(Sec.x) );
+    end
+    
+    % Compute the Vario & Histo
+    vario_x=nan(parm.n_real,numel(Prim.x));
+    vario_y=nan(parm.n_real,numel(Prim.y));
+    xi = -3:.1:3;
+    f=nan(parm.n_real,numel(xi));
+    for i_real=1:parm.n_real
+        r = zcs(:,:,i_real);
+        %r = (r(:)-mean(r(:)))./std(r(:));
+        [vario_x(i_real,:),vario_y(i_real,:)]=variogram_gridded_perso(reshape( r(:), numel(Prim.y), numel(Prim.x)));
+        
+        r=zcs(:,:,i_real);
+        f(i_real,:) = ksdensity(r(:),xi);
+    end
+    [vario_prim_x,vario_prim_y]=variogram_gridded_perso(Prim.d);
 
 
-% Compute the covariance of the data error
-Cm = inv(sqrtm(full(gen.Rho.i.output.R(gen.Rho.i.output.inside,gen.Rho.i.output.inside))));
-Cmt = (eye(size(Sec.res))-Sec.res)*Cm;
+    % Compute the forward response
+    fsim_pseudo=nan(numel(gen.Rho.f.output.pseudo),parm.n_real);
+    fsim_resistance=nan(numel(gen.Rho.f.output.resistance),parm.n_real);
+    rho = 1./Nscore.inverse(zcs);
+    parfor i_real=1:parm.n_real
+        f={};
+        f.res_matrix        = gen.Rho.f.res_matrix;
+        f.grid              = gen.Rho.f.grid;    
+        f.header            = 'Forward';  % title of up to 80 characters
+        f.job_type          = 0;
+        f.filepath          = ['data_gen/IO-file-' num2str(i_real) '/'];
+        f.readonly          = 0;
+        f.alpha_aniso       = gen.Rho.f.alpha_aniso;
+        f.elec_X_id         = gen.Rho.f.elec_X_id;
+        f.elec_Y_id         = gen.Rho.f.elec_Y_id;
+        f.rho               = rho(:,:,i_real);
+        f.num_regions       = gen.Rho.f.num_regions;
+        f.rho_min           = gen.Rho.f.rho_min;
+        f.rho_avg           = gen.Rho.f.rho_avg;
+        f.rho_max           = gen.Rho.f.rho_max;
 
+        mkdir(f.filepath)
+        f                   = Matlat2R2(f,gen.Rho.elec); % write file and run forward modeling
+        fsim_pseudo(:,i_real) = f.output.pseudo;
+        fsim_resistance(:,i_real) = f.output.resistance;
+    end
 
-% Compute the covariance of the spatial model
-covar = kriginginitiaite(gen.covar);
-Cz = covar.g(squareform(pdist([Prim.X(:) Prim.Y(:)]*covar.cx)));
-Cz=sparse(Cz);
-Czd = Cz * G';
-Cd = G * Czd;
+    % Compute the misfit
+    fsim_misfit=nan(numel(gen.Rho.f.output.resistancewitherror),parm.n_real);
+    for i_real=1:parm.n_real  
+        fsim_misfit(:,i_real) = (fsim_resistance(:,i_real) - gen.Rho.f.output.resistancewitherror) ./ (gen.Rho.i.a_wgt + gen.Rho.i.b_wgt*gen.Rho.f.output.resistancewitherror);
+        err(i_l, i_real) = sqrt(mean(fsim_misfit(:,i_real).^2));
+    end
 
-
-% Combine both covariance an built the Kriging System
-Cd2 = Cd+Cmt;
-Czh = Cz(Prim_pt.id,Prim_pt.id);
-Czzh = Cz(Prim_pt.id,:);
-Czhd = Czd( Prim_pt.id ,:);
-CCa = [ Cd2 Czhd' ; Czhd Czh ];
-CCb = [ Czd' ; Czzh' ];
-
-
-% Solve the kriging system
-W=zeros(numel(Prim.x)*numel(Prim.y),numel(Sec.d(:))+Prim_pt.n);
-parfor ij=1:numel(Prim.x)*numel(Prim.y)
-     W(ij,:) = CCa \ CCb(:,ij);
 end
-% save(['ERT/result/' fieldname '_cond'],'W','Prim_pt','G','Nscore','Sec','Prim')
 
-% Compute the Kriging map
-zh = reshape( W * [Sec.d(:) ; Prim_pt.d], numel(Prim.y), numel(Prim.x));
-%zhtest = reshape( W * [Test_Sec_d(:) ; Prim_pt.d], ny, nx);
 
-figure(5); clf;   colormap(viridis())
-surf(Prim.x,Prim.y,zh,'EdgeColor','none','facecolor','flat'); caxis([-3 3])
-view(2); axis equal tight; set(gca,'Ydir','reverse'); xlabel('x');ylabel('y'); colorbar('southoutside'); title('Kriging Estimate')
-% export_fig -eps 'Krig'
+figure; boxplot(err','Labels', {listing.name},'LabelOrientation','inline')
+
+
+
+
+
+%% GW
+
+kn=numel(K_true);
+
+%hydraulic conductivity
+k=[(1:kn)' ones(kn,1)*0.1 K_true(:) zeros(kn,1) K_true(:) zeros(kn,2) K_true(:) ones(kn,1)*0.1e-5];
+dlmwrite('k.dat',k,'delimiter',' ','precision','%6.12f');
+
+%mass properties
+mp=[(1:kn)' ones(kn,1)*-4 ones(kn,1) ones(kn,1)*0.1 zeros(kn,1) ones(kn,1)*2e-9 zeros(kn,2) zeros(kn,1)];
+dlmwrite('mp.dat',mp,'delimiter',' ','precision','%6.12f');
+
+% run gw
+!gw3.1.6_Win32.exe
+
+
+
+
+
+
+
+%% ------------------------------------------------------------------------
+% Previous Script
+%--------------------------------------------------------------------------
+
+
 
 
 %% Simulation of the Area-to-point Kriging 
 rng('shuffle');
 
 parm.n_real = 30;
-covar = kriginginitiaite(gen.covar);
+% covar = kriginginitiaite(gen.covar);
 zcs=nan(numel(Prim.y), numel(Prim.x),parm.n_real);
 z=nan(numel(Sec.y), numel(Sec.x),parm.n_real);
 for i_real=1:parm.n_real
@@ -223,9 +343,9 @@ subplot(4,1,3);surf(Prim.x, Prim.y, mean(zcs,3),'EdgeColor','none','facecolor','
 subplot(4,1,4);surf(Prim.x, Prim.y, std(zcs,[],3),'EdgeColor','none','facecolor','flat'); view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
 %export_fig -eps 'PrimOverview'
 
-figure(65);clf; colormap(viridis())
+figure;clf; colormap(viridis())
 c_axis=[ -3 3];
-subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
+subplot(4,1,1);surf(Prim.x, Prim.y, Prim.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse');
 % hold on; scatter(Prim_pt.x,Prim_pt.y,'filled','r')
 subplot(4,1,2);surf(Prim.x, Prim.y, zcs(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Prim.x, Prim.y, zcs(:,:,2),'EdgeColor','none','facecolor','flat'); caxis(c_axis);view(2); axis tight equal; set(gca,'Ydir','reverse'); 
@@ -238,6 +358,14 @@ subplot(4,1,1);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); 
 subplot(4,1,2);surf(Sec.x, Sec.y, z(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 subplot(4,1,3);surf(Sec.x, Sec.y, mean(z,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');
 subplot(4,1,4);surf(Sec.x, Sec.y, std(z,[],3),'EdgeColor','none','facecolor','flat');  title('d Average of True field');view(2); axis tight equal; set(gca,'Ydir','reverse'); colorbar;
+%export_fig -eps 'SecOverview'
+
+figure;clf; colormap(viridis())
+c_axis=[ -1 1];
+subplot(4,1,1);surf(Sec.x, Sec.y, Sec.d,'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');
+subplot(4,1,2);surf(Sec.x, Sec.y, z(:,:,1),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); 
+subplot(4,1,3);surf(Sec.x, Sec.y, z(:,:,2),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse');
+subplot(4,1,4);surf(Sec.x, Sec.y, z(:,:,3),'EdgeColor','none','facecolor','flat'); caxis(c_axis); view(2); axis tight equal; set(gca,'Ydir','reverse'); 
 %export_fig -eps 'SecOverview'
 
 figure(8);clf;colormap(viridis())
@@ -261,7 +389,7 @@ subplot(2,1,1);  hold on;
 h1=plot(Prim.x(1:2:end),vario_x(:,1:2:end)','b','color',[.5 .5 .5]);
 h2=plot(Prim.x,vario_prim_x,'-r','linewidth',2);
 h3=plot(Prim.x,1-covar.g(Prim.x*covar.cx(1)),'--k','linewidth',2);
-xlim([0 60]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)')
+xlim([0 30]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)')
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
 subplot(2,1,2); hold on; 
 h1=plot(Prim.y,vario_y','b','color',[.5 .5 .5]);
@@ -269,7 +397,7 @@ h2=plot(Prim.y,vario_prim_y,'-r','linewidth',2);
 h3=plot(Prim.y,1-covar.g(Prim.y*covar.cx(4)),'--k','linewidth',2);
 xlim([0 6]); xlabel('Lag-distance h_y ');ylabel('Variogram \gamma(h_y)')
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
-export_fig -eps 'Vario'
+% export_fig -eps 'Vario'
 
 
 figure(10);clf; hold on; colormap(viridis())
