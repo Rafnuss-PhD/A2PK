@@ -6,8 +6,8 @@ load(['result/' fieldname]);
 load(['result/' fieldname '_cond']);
 %addpath('C:\Users\rnussba1\Documents\MATLAB\Colormaps\')
 
-%% Set-up fprward simulator
-f= gen.f;
+%% Set-up forward simulator
+f=gen.f;
 
 f.content = fileread( ['result/' fieldname '_IO-file/forward/R2.in']);
 F = griddedInterpolant({Sec.y,Sec.x},1000./Nscore.inverse(Sec.d),'linear');
@@ -22,8 +22,8 @@ gen_f_output_resistancewitherror=gen.f.output.resistancewitherror;
 gen_i_b_wgt = gen.i.b_wgt;
 
 
-%% COnditioning
-
+%% Conditioning
+covar = kriginginitiaite(gen.covar);
 Czzh = covar.g(pdist2([Prim.X(Prim_pt.id ) Prim.Y(Prim_pt.id)]*covar.cx,[Prim.X(:) Prim.Y(:)]*covar.cx));
 Czh = Czzh(:,Prim_pt.id);
 
@@ -34,6 +34,7 @@ for ij=1:numel(Prim.x)*numel(Prim.y)
 end
 
 zh = reshape( W * Prim_pt.d, numel(Prim.y), numel(Prim.x));
+
 
 %% Simple parrallelization
 theta= 0.05; %0.05 -> 0.002
@@ -53,66 +54,62 @@ f.rho(f.grid.inside) = 1000./Nscore.inverse(m_pres);
 fsim_resistance = Matlat2R2min(f);
 l_pres = sum (((fsim_resistance - gen_f_output_resistancewitherror) ./ ( gen_i_b_wgt*gen_f_output_resistancewitherror)).^2 );
 
-figure(3); clf; hold on; set(gca,'YScale','log')
 
 i_prop=0;
 
-for i_prop_par=1:np
-    f.filepath = ['data_gen/IO-file-' num2str(i_prop_par) '/'];
-    mkdir(f.filepath)
-    copyfile('R2/R2.exe',[f.filepath 'R2.exe'])
-    copyfile(['result/' fieldname '_IO-file/forward/electrodes.dat'],[f.filepath 'electrodes.dat'])
-    copyfile(['result\' fieldname '_IO-file\forward\protocol.dat'],[f.filepath 'protocol.dat'])
-end
 
+f.filepath = 'data_gen/IO-file/';
+mkdir(f.filepath)
+copyfile('R2/R2.exe',[f.filepath 'R2.exe'])
+copyfile(['result/' fieldname '_IO-file/forward/electrodes.dat'],[f.filepath 'electrodes.dat'])
+copyfile(['result\' fieldname '_IO-file\forward\protocol.dat'],[f.filepath 'protocol.dat'])
+
+
+f_tmp=f;
 
 while i_prop<n-10
     
-    parfor i_prop_par = 1:np
-        m_prop_par(:,:,i_prop_par) = m_pres*cos(theta) + fftma_perso(covar, struct('x',Prim.x,'y',Prim.y))*sin(theta);
-        f_tmp=f;
-        f_tmp.filepath = ['data_gen/IO-file-' num2str(i_prop_par) '/'];
-        f_tmp.rho(f_tmp.grid.inside) = 1000./Nscore.inverse(m_prop_par(:,:,i_prop_par));
-        f_tmp = Matlat2R2min(f_tmp);
-        fsim_resistance = Matlat2R2min(f_tmp);
-        l_par(i_prop_par) = sum (((fsim_resistance - gen_f_output_resistancewitherror) ./ ( gen_i_b_wgt*gen_f_output_resistancewitherror)).^2 );
-    end
+    % New proposal
+    i_prop = i_prop+1;
     
-    for i_prop_par = 1:np
+    m_prop = m_pres*cos(theta) + fftma_perso(covar, struct('x',Prim.x,'y',Prim.y))*sin(theta);
+
+    % Compute proposal
+    f_tmp.rho(f_tmp.grid.inside) = 1000./Nscore.inverse(m_prop_par(:,:,i_prop_par));
+    fsim_resistance = Matlat2R2min(f_tmp);
+    l(i_prop) = sum (((fsim_resistance - gen_f_output_resistancewitherror) ./ ( gen_i_b_wgt*gen_f_output_resistancewitherror)).^2 );
+
+
+    % Update the step \theta
+    if mod(i_prop,20)==0 &&  sqrt(l_pres/numel(gen.f.output.resistancewitherror))>2
+        dtheta = 0.001*(mean(accrate(i_prop-19:i_prop))-.3)*10;
+        disp(['Change of theta: ' num2str(theta) '->' num2str(theta + dtheta) ' | '  num2str(100*mean(accrate(i_prop-19:i_prop))) '%)'])
+        if theta + dtheta>0 && theta + dtheta<1
+            theta = theta + dtheta;
+        end
+    end
+
+    % Save the present model if  not burning zone.
+    if mod(i_prop,ns)==0 && sqrt(l_pres/numel(gen.f.output.resistancewitherror))>2
+        i_s=i_s+1;
+        m(:,:,i_s)=m_pres;
+    end
+
+    % Test for acceptance.
+    if min(exp(-1/2*(l(i_prop)-l_pres)),1) > rand()
+        accrate(i_prop)=true;
+        m_pres = m_prop_par(:,:,i_prop_par);
+        l_pres = l(i_prop);
         
-        % New proposal
-        i_prop = i_prop+1;
-        
-        % Update the step \theta
-        if mod(i_prop,20)==0 &&  sqrt(l_pres/numel(gen.f.output.resistancewitherror))>2
-            dtheta = 0.001*(mean(accrate(i_prop-19:i_prop))-.3)*10;
-            disp(['Change of theta: ' num2str(theta) '->' num2str(theta + dtheta) ' | '  num2str(100*mean(accrate(i_prop-19:i_prop))) '%)'])
-            if theta + dtheta>0 && theta + dtheta<1
-                theta = theta + dtheta;
-            end
+        if l_pres<l_best
+            l_best=l_pres;
+            m_best=m_pres;
         end
         
-        % Save the present model if  not burning zone.
-        if mod(i_prop,ns)==0 && sqrt(l_pres/numel(gen.f.output.resistancewitherror))>2
-            i_s=i_s+1;
-            m(:,:,i_s)=m_pres;
-        end
+        disp([num2str(i_prop) '| Accepted (' num2str(100*mean(accrate(2:i_prop))) '%)'])
         
-        % Save the Sum of square error
-        l(i_prop)=l_par(i_prop_par);
-        
-        % Test for acceptance.
-        if min(exp(-1/2*(l(i_prop)-l_pres)),1) > rand()
-            accrate(i_prop)=true;
-            m_pres = m_prop_par(:,:,i_prop_par);
-            l_pres = l(i_prop);
-            disp([num2str(i_prop) '| Accepted (' num2str(100*mean(accrate(2:i_prop))) '%)'])
-            plot(i_prop,l(i_prop),'or')
-            break
-        else
-            disp([num2str(i_prop) '| Rejected (' num2str(100*mean(accrate(2:i_prop))) '%)'])
-            plot(i_prop,l(i_prop),'ok')
-        end
+    else
+        disp([num2str(i_prop) '| Rejected (' num2str(100*mean(accrate(2:i_prop))) '%)'])
     end
 end
 
@@ -201,7 +198,16 @@ while i_prop<n-10
     m_prop_par=nan(numel(Prim.y),numel(Prim.x),numcores+1);
     m_prop_par(:,:,1) = m_pres; %*cos(theta) + fftma_perso(covar, struct('x',Prim.x,'y',Prim.y))*sin(theta);
     for i=2:numcores+1
+        
+        X=randn();
+        L=bwdist(padarray(1,[250,250]);
+        
+        filter2(X,L));
+        
+        
+        
         m_prop_par(:,:,i) = m_prop_par(:,:,predecessors(H,i))*cos(theta(i_t)) + fftma_perso(covar, struct('x',Prim.x,'y',Prim.y))*sin(theta(i_t));
+        
     end
     
     l_par = nan(numcores+1,1);
