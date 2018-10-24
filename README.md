@@ -1,4 +1,6 @@
 # A2PK
+[![DOI](https://zenodo.org/badge/105257986.svg)](https://zenodo.org/badge/latestdoi/105257986)
+
 This MATLAS package allows you to generate stocastic Gaussin simulation at a fine-scale based on a coarse scale image of the same domain. This is done through area-to-point kriging, a co-kriging estimation where the coase-scale is view as a secondary variable which allows the construction of the cross-covariance easily. 
 
 
