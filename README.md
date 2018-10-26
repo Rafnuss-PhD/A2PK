@@ -12,12 +12,12 @@ The scripts below are generated with Matlab live-script and allow your to see st
 
 
 ## Application to Eletrical Resistivity Tomography (ERT)
-We applied A2PK to the simulation of a fine-scale scale electrical conductivity field based on the smooth result of an inversion based on ERT. Refers to [the ERT folder](https://github.com/Raphael-Nussbaumer-PhD/A2PK/tree/master/ERT) for all the codes, and more precisely to the publish script [``script_ERT.mlx``](https://raphael-nussbaumer-phd.github.io/A2PK/ERT/script_ERT). 
+We applied A2PK to the simulation of a fine-scale scale electrical conductivity field based on the smooth result of an inversion based on ERT. Refers to [the ERT folder](https://github.com/Rafnuss-PhD/A2PK/tree/master/ERT) for all the codes, and more precisely to the publish script [``script_ERT.mlx``](https://Rafnuss-phd.github.io/A2PK/ERT/script_ERT). 
 
 This work has lead to a paper which is currently under revision. Contact me if you would like a pdf of the draft. 
 
 ## Application to Hydraulic tomography (HT)
-Refers to [the HT folder](https://github.com/Raphael-Nussbaumer-PhD/A2PK/tree/master/HT), and more precisely to [the script used to generate the dataset and the result](https://github.com/Raphael-Nussbaumer-PhD/A2PK/blob/master/HT/script_elec_cond.m). I'll try to make an html page of this code soon. 
+Refers to [the HT folder](https://github.com/Rafnuss-PhD/A2PK/tree/master/HT), and more precisely to [the script used to generate the dataset and the result](https://github.com/Rafnuss-PhD/A2PK/blob/master/HT/script_elec_cond.m). I'll try to make an html page of this code soon. 
 This is an ongoing research.
 
 ## Reference
