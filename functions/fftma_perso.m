@@ -36,7 +36,7 @@ field_p=field_g(grid.ny+1:2*grid.ny,grid.nx+1:2*grid.nx);
 
 
 %% Adjust the field
-field_f = (field_p-mean(field_p(:)))./std(field_p(:));
+field_f = (field_p-mean(field_p(:)))./std(field_p(:))*covar.c0;
 
 
 
@@ -110,7 +110,7 @@ if min(K(1,:))>1e-6
   mk=1;
 end  
 
-if mk==1;
+if mk==1
   Nx2 = Nx/2;
   Ny2 = Ny/2;
 

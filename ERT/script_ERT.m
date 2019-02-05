@@ -311,18 +311,22 @@ for i_real=1:parm.n_real
     [vario_x(i_real,:),vario_y(i_real,:)]=variogram_gridded_perso(reshape( r(:), numel(Prim.y), numel(Prim.x)));
 end
 [vario_prim_x,vario_prim_y]=variogram_gridded_perso(Prim.d);
+[vario_sec_x,vario_sec_y]=variogram_gridded_perso(reshape(Sec.d(gen.i.grid.inside),20,100));
+
 
 figure(9);clf;
 subplot(2,1,1);  hold on; 
 h1=plot(Prim.x(1:2:end)-Prim.x(1),vario_x(:,1:2:end)','b','color',[.5 .5 .5]);
 h2=plot(Prim.x-Prim.x(1),vario_prim_x,'-r','linewidth',2);
 h3=plot(Prim.x-Prim.x(1),1-covar.g((Prim.x-Prim.x(1))*covar.cx(1)),'--k','linewidth',2);
+h4=plot(Sec.x(11:110)-Sec.x(11),vario_sec_x,'-b','linewidth',2);
 xlim([0 60]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)'); ylim([0 1.5])
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
 subplot(2,1,2); hold on; 
 h1=plot(Prim.y(1:2:end)-Prim.y(1),vario_y(:,1:2:end)','b','color',[.5 .5 .5]);
 h2=plot(Prim.y-Prim.y(1),vario_prim_y,'-r','linewidth',2);
 h3=plot(Prim.y-Prim.y(1),1-covar.g((Prim.y-Prim.y(1))*covar.cx(4)),'--k','linewidth',2);
+h4=plot(Sec.y(1:20)-Sec.y(1),vario_sec_y,'-b','linewidth',2);
 xlim([0 6]); xlabel('Lag-distance h_y ');ylabel('Variogram \gamma(h_y)')
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model'); ylim([0 1.2])
 % export_fig -eps 'Vario'
@@ -340,6 +344,8 @@ h4=plot(xi,f,'-r','linewidth',2);
 [f,xi] = ksdensity(Prim_pt.d(:));
 h2=plot(xi,f,'-g','linewidth',2);
 h3=plot(xi,normpdf(xi),'--k','linewidth',2);
+[f,xi] = ksdensity(Sec.d(gen.i.grid.inside));
+h4=plot(xi,f,'-b','linewidth',2);
 xlabel('Lag-distance h ');ylabel('Variogram \gamma(h)')
 legend([h1 h2 h3 h4],'500 realizations','True field','Theorical Model','Sampled value (well)')
 % export_fig -eps 'Histogram'
@@ -412,6 +418,8 @@ figure(23); clf; hold on; axis equal tight;
 for i_real=1:parm.n_real  
     scatter(fsim_pseudo(:,i_real),gen.f.output.pseudo,'.k');
 end
+corrcoef(fsim_pseudo(:),repmat(gen.f.output.pseudo,parm.n_real,1))
+corrcoef(mean(fsim_pseudo,2),gen.f.output.pseudo)
 scatter(gen.i.output.pseudoCalc,gen.f.output.pseudo,'.r');
 scatter(mean(fsim_pseudo,2),gen.f.output.pseudo,'.g');
 x=[floor(min(fsim_pseudo(:))) ceil(max(fsim_pseudo(:)))];
