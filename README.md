@@ -7,40 +7,6 @@ This MATLAS package allows you to generate stocastic Gaussin simulation at a fin
 
 The main function to run area-to-point kriging is ``A2PK.m``. The script file [``script.mlx``](https://rafnuss-phd.github.io/A2PK/script) shows you how to use the function.
 
-### Theory with equations
-Area-to-point kriging is a particular case of the co-kriging estimation of a primary variable $$\bf{z}$$ with a secondary variable $$\bf{Z}$$ that can be related to $$\bf{z}$$ by a linear operator $\bf{G}$
-
-$${\bf{Z}} = {\bf{Gz}}.$$
-
-Because $$\bf{z}$$ is a Gaussian variable with a known covariance function, its covariance matrix, denoted as $${{\bf{C}}_{z}}$$, is known. Thus, the cross-covariance with respect to $$\bf{Z}$$ can be computed as
-
-$${{\bf{C}}_{{\rm{zZ}}}} = {{\bf{C}}_z}{{\bf{G}}^T},$$
-
-and the covariance matrix of $$\bf{Z}$$ is
-
-$${{\bf{C}}_Z}{\rm{ = }}{\bf{G}}{{\bf{C}}_z}{{\bf{G}}^T}.$$
-
-The estimation of $$\bf{z}$$ by area-to-point kriging, denoted as $$\bf{\hat{z}}$$, is given by the linear combination of $$\bf{Z}$$ weighted by the coefficients $$\bf{\Lambda }$$
-
-$${\bf{\hat z}} = {\bf{\Lambda Z}}.$$
-
-In the presence of known data $${{\bf{z}}^{\text{hd}}}$$, commonly referred to as hard data, the kriging estimation 
-
-$${\bf{\hat z}} = {{\bf{\Lambda }}_z}{{\bf{z}}^{{\rm{hd}}}} + {{\bf{\Lambda }}_Z}{\bf{Z}},$$
-
-and the kriging system  becomes
-
-$$\left[ {\begin{array}{*{20}{c}}
-{{{\bf{C}}_Z}}&{{{\bf{C}}_{Z,{z^{{\rm{hd}}}}}}}\\
-{{{\bf{C}}_{{z^{{\rm{hd}}}},Z}}}&{{{\bf{C}}_{{z^{{\rm{hd}}}}}}}
-\end{array}} \right]\left[ {\begin{array}{*{20}{c}}
-{{{\bf{\Lambda }}_Z}}\\
-{{{\bf{\Lambda }}_z}}
-\end{array}} \right] = \left[ {\begin{array}{*{20}{c}}
-{{C_{\hat z,Z}}}\\
-{{C_{\hat z,\;\;{z^{{\rm{hd}}}}}}}
-\end{array}} \right].$$
-
 
 ### Examples
 The scripts below are generated with Matlab live-script and allow your to see step by step what is A2PK and how to use it.
