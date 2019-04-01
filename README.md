@@ -38,6 +38,3 @@ Despite promising result, we did not carried on this reasearch because of lack o
 - Liu, X. H., P. C. Kyriakidis, and M. F. Goodchild. 2008. “Population‐density Estimation Using Regression and Area‐to‐point Residual Kriging.” International Journal of Geographical Information Science 22(4):431–47. Retrieved (http://www.tandfonline.com/doi/abs/10.1080/13658810701492225).
 - Gotway, Carol A. and Linda J. Young. 2002. “Combining Incompatible Spatial Data.” Journal of the American Statistical Association 97(458):632–48. Retrieved (http://www.tandfonline.com/doi/abs/10.1198/016214502760047140).
 Kyriakidis, Phaedon C. and Eun Hye Yoo. 2005. “Geostatistical Prediction and Simulation of Point Values from Areal Data.” Geographical Analysis 37(2):124–51.
-
-## Scripts for Github page
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
