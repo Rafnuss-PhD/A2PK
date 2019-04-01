@@ -303,9 +303,9 @@ subplot(2,1,2);surf(Sec.x, Sec.y, mean(z,3)-Sec.d,'EdgeColor','none','facecolor'
 
 % Compute the Variogram and Histogram of realiaztions
 % parm.n_real=500;
-vario_x=nan(parm.n_real,numel(Prim.x));
-vario_y=nan(parm.n_real,numel(Prim.y));
-for i_real=1:parm.n_real
+vario_x=nan(size(zcs,3),numel(Prim.x));
+vario_y=nan(size(zcs,3),numel(Prim.y));
+for i_real=1:size(zcs,3)
     r = zcs(:,:,i_real);
     %r = (r(:)-mean(r(:)))./std(r(:));
     [vario_x(i_real,:),vario_y(i_real,:)]=variogram_gridded_perso(reshape( r(:), numel(Prim.y), numel(Prim.x)));
@@ -320,6 +320,7 @@ h1=plot(Prim.x(1:2:end)-Prim.x(1),vario_x(:,1:2:end)','b','color',[.5 .5 .5]);
 h2=plot(Prim.x-Prim.x(1),vario_prim_x,'-r','linewidth',2);
 h3=plot(Prim.x-Prim.x(1),1-covar.g((Prim.x-Prim.x(1))*covar.cx(1)),'--k','linewidth',2);
 h4=plot(Sec.x(11:110)-Sec.x(11),vario_sec_x,'-b','linewidth',2);
+h5=plot(Prim.x(1:end)-Prim.x(1),vario_x(1,1:end)','g');
 xlim([0 60]); xlabel('Lag-distance h_x ');ylabel('Variogram \gamma(h_x)'); ylim([0 1.5])
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model')
 subplot(2,1,2); hold on; 
@@ -327,6 +328,7 @@ h1=plot(Prim.y(1:2:end)-Prim.y(1),vario_y(:,1:2:end)','b','color',[.5 .5 .5]);
 h2=plot(Prim.y-Prim.y(1),vario_prim_y,'-r','linewidth',2);
 h3=plot(Prim.y-Prim.y(1),1-covar.g((Prim.y-Prim.y(1))*covar.cx(4)),'--k','linewidth',2);
 h4=plot(Sec.y(1:20)-Sec.y(1),vario_sec_y,'-b','linewidth',2);
+h5=plot(Prim.y(1:end)-Prim.y(1),vario_y(1,1:end)','g');
 xlim([0 6]); xlabel('Lag-distance h_y ');ylabel('Variogram \gamma(h_y)')
 legend([h1(1) h2 h3],'500 realizations','True field','Theorical Model'); ylim([0 1.2])
 % export_fig -eps 'Vario'
@@ -341,7 +343,9 @@ for i_real=1:parm.n_real
 end
 [f,xi] = ksdensity(Prim.d(:));
 h4=plot(xi,f,'-r','linewidth',2);
-[f,xi] = ksdensity(Prim_pt.d(:));
+% [f,xi] = ksdensity(Prim_pt.d(:));
+% h2=plot(xi,f,'-g','linewidth',2);
+[f,xi] = ksdensity(reshape(zcs(:,:,1),1,[]));
 h2=plot(xi,f,'-g','linewidth',2);
 h3=plot(xi,normpdf(xi),'--k','linewidth',2);
 [f,xi] = ksdensity(Sec.d(gen.i.grid.inside));

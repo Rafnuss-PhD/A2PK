@@ -1,34 +1,47 @@
 %% Area-to-Point kriging A2PK
 % *Area-to-Point kriging A2PK* generates stocastic Gaussian realization
 % |*z*| constrained to a variable |*Z*| which is lineraly related
-%  to |*z*| by |*G*|
+%  to |*z*| by |*G*|:
 %
 % $$\mathbf{Z = Gz}$$
 %
 % 
 % The argument of the function are
-% * x
-% * y
-% * hd
-% * Z
-% * G
-% * covar: covariance structure defined as
-
-% * n_real: number of realization desired
+% * |x|: vector of coordinates along the first axes
+% * |y|: vector of coordinates along the second axes
+% * |hd|: Hard data, see |functions/sampling_pt.m|
+% * |Z|: Coarse scale 
+% * |G|: Linear link
+% * |covar|: covariance structure defined as in
+% |FastGaussianSimulation/covarIni.m|
+% * |n_real|: number of realization desired
 % 
+% *Script*
+% 
+% *Exemples*: Available in the folder |examples| with unconditional and
+% conditional Gaussian simulation and a case study of electrical tomography
 
 
 function [zcs] = A2PK(x,y,hd,Z,G,covar,n_real)
 
 %% Checkin input argument
-%TO BE DONE
+validateattributes(x,{'numeric'},{'vector'})
+validateattributes(y,{'numeric'},{'vector'})
+validateattributes(hd,{'struct'},{})
+validateattributes(hd.id,{'numeric'},{'vector','integer'})
+validateattributes(hd.d,{'numeric'},{'vector'})
+validateattributes(hd.n,{'numeric'},{'integer','nonnegative','scalar'})
+validateattributes(Z,{'numeric'},{'2d'})
+validateattributes(G,{'numeric'},{'2d'})
+validateattributes(n_real,{'numeric'},{'integer','positive','scalar'})
 
 %% Inlude the dependancy
-addpath('../functions');
+addpath('./FastGaussianSimulation');
+addpath('./functions');
 
 %% Convert the covariance
-covar = kriginginitiaite(covar);
-[X, Y] = meshgrid(x, y); X=X(:);Y=Y(:);
+covar = covarIni(covar);
+[X, Y] = meshgrid(x, y); X=X(:); Y=Y(:);
 nx=numel(x); ny=numel(y); nZ=numel(Z);
 
 %% Calcul of the covariance and cross covariance.
@@ -37,7 +50,7 @@ nx=numel(x); ny=numel(y); nZ=numel(Z);
 if nx*ny>100000
     Czz=zeros(nx*ny,nx*ny);
     wradius = parm.k.wradius;
-    parfor ixy=1:nx*ny
+    for ixy=1:nx*ny
         u=zeros(1,nx*ny);
         id = X-X(ixy)<covar.range(1)*wradius  & Y-Y(ixy)<covar.range(2)*wradius;
         u(id) = covar.g(pdist2([X(id) Y(id)]*covar.cx,[X(ixy) Y(ixy)]*covar.cx));
@@ -61,17 +74,21 @@ CCb = [ CzZ' ; Czhd' ];
 
 %% Compute the kriging weights and kriging map
 % note that this can be very long... 
-W=zeros(nx*ny,nZ+hd.n);
-parfor ij=1:nx*ny
-    W(ij,:) = CCa \ CCb(:,ij);
+W = zeros(nx*ny,nZ+hd.n);
+CCainv = inv(CCa);
+S = nan(nx,ny); % variance of estimation
+
+for ij=1:nx*ny
+    W(ij,:) = CCainv * CCb(:,ij);
+    % S(ij) =  Cz0 - W(ij,:) * CCb(:,ij);
 end
 zh = reshape( W * [Z(:) ; hd.d], ny, nx);
 
 
 %% Create Simulation
 zcs=nan(ny, nx,n_real);
-parfor i_real=1:n_real
-    zs = fftma_perso(covar, struct('x',x,'y',y));
-    zhs = reshape( W * [G * zs(:) ; hd.d], ny, nx);
-    zcs(:,:,i_real) = zh + (zs - zhs);
+for i_real=1:n_real
+    zs = FGS(struct('x',x,'y',y), covar);
+    zhs = reshape( W * [G * zs{1}(:) ; hd.d], ny, nx);
+    zcs(:,:,i_real) = zh + (zs{1} - zhs);
 end

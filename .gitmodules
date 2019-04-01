@@ -1,0 +1,3 @@
+[submodule "FastGaussianSimulation"]
+	path = FastGaussianSimulation
+	url = https://github.com/GAIA-UNIL/FastGaussianSimulation.git
