@@ -73,15 +73,11 @@ CCb = [ CzZ' ; Czhd' ];
 
 
 %% Compute the kriging weights and kriging map
-% note that this can be very long... 
-W = zeros(nx*ny,nZ+hd.n);
-CCainv = inv(CCa);
-S = nan(nx,ny); % variance of estimation
+% note that this can be very long... , Not anymore
 
-for ij=1:nx*ny
-    W(ij,:) = CCainv * CCb(:,ij);
-    % S(ij) =  Cz0 - W(ij,:) * CCb(:,ij);
-end
+W = (CCa \ CCb)';
+%S =  covar.g(0) - diag(W * CCb);  % variance of estimation  <=== need to be checked
+
 zh = reshape( W * [Z(:) ; hd.d], ny, nx);
 
 
