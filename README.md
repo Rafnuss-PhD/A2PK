@@ -1,5 +1,5 @@
 # Area-to-point kriging (A2PK)
-[![DOI](https://zenodo.org/badge/99672776.svg)](https://zenodo.org/badge/latestdoi/99672776)
+[![DOI](https://zenodo.org/badge/105257986.svg)](https://zenodo.org/badge/latestdoi/105257986)
 
 This MATLAS package allows you to generate fine-scale stocastic Gaussian simulation based on a known coarse scale image of the same domain. This is done through area-to-point kriging, a co-kriging estimation where the coase-scale is considered as a secondary variable so that the cross-covariance can be computed easily. 
 
