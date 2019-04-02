@@ -24,16 +24,5 @@ Despite promising result, we did not carried on this reasearch because of lack o
 
 ## Reference
 
-### Publications using this code
 - Nussbaumer, R., Mariethoz, G., Linde N., & Holliger, K. (2018). Simulation of fine-scale electrical conductivity fields using tomograms and area-to-point kriging, *GeoEnv2018, Belfast*. DOI: [10.13140/RG.2.2.31712.12801](https://www.doi.org/10.13140/RG.2.2.31712.12801)
-
-### Some external useful readings
-- Kyriakidis, Phaedon C. 2004. â€œA Geostatistical Framework for Area-to-Point Spatial Interpolation.â€? Geographical Analysis 36(3):259â€“89. Retrieved (http://doi.wiley.com/10.1353/geo.2004.0009).
-- Yoo, E. H. and Phaedon C. Kyriakidis. 2006. â€œArea-to-Point Kriging with Inequality-Type Data.â€? Journal of Geographical Systems 8(4):357â€“90.
-- Yoo, Eun Hye and P. C. Kyriakidis. 2008. â€œArea-to-Point Prediction Under Boundary Conditions.â€? Geographical Analysis 40(4):355â€“79. Retrieved (http://doi.wiley.com/10.1111/j.0016-7363.2008.00734.x).
-- Yoo, E. H. and P. C. Kyriakidis. 2009. â€œArea-to-Point Kriging in Spatial Hedonic Pricing Models.â€? Journal of Geographical Systems 11(4):381â€“406.
-- Atkinson, Peter M. 2013. â€œDownscaling in Remote Sensing.â€? International Journal of Applied Earth Observation and Geoinformation 22(1):106â€“14. Retrieved (http://dx.doi.org/10.1016/j.jag.2012.04.012).
-- Atkinson, Peter M., Eulogio Pardo-IgÃºzquiza, and Mario Chica-Olmo. 2008. â€œDownscaling Cokriging for Super-Resolution Mapping of Continua in Remotely Sensed Images.â€? IEEE Transactions on Geoscience and Remote Sensing 46(2):573â€“80.
-- Liu, X. H., P. C. Kyriakidis, and M. F. Goodchild. 2008. â€œPopulationâ€?density Estimation Using Regression and Areaâ€?toâ€?point Residual Kriging.â€? International Journal of Geographical Information Science 22(4):431â€“47. Retrieved (http://www.tandfonline.com/doi/abs/10.1080/13658810701492225).
-- Gotway, Carol A. and Linda J. Young. 2002. â€œCombining Incompatible Spatial Data.â€? Journal of the American Statistical Association 97(458):632â€“48. Retrieved (http://www.tandfonline.com/doi/abs/10.1198/016214502760047140).
-Kyriakidis, Phaedon C. and Eun Hye Yoo. 2005. â€œGeostatistical Prediction and Simulation of Point Values from Areal Data.â€? Geographical Analysis 37(2):124â€“51.
+- Kyriakidis, Phaedon C. 2004. Ã¢â‚¬Å“A Geostatistical Framework for Area-to-Point Spatial Interpolation.*Geographical Analysis 36(3):259*. (http://doi.wiley.com/10.1353/geo.2004.0009).
