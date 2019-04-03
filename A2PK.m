@@ -32,9 +32,14 @@ function [zcs,zh,S] = A2PK(x,y,hd,Z,G,covar,n_real)
 %% Checkin input argument
 validateattributes(x,{'numeric'},{'vector'})
 validateattributes(y,{'numeric'},{'vector'})
+if isempty(hd)
+    hd.id=[];
+    hd.n=0;
+    hd.d=[];
+end
 validateattributes(hd,{'struct'},{})
-validateattributes(hd.id,{'numeric'},{'vector','integer'})
-validateattributes(hd.d,{'numeric'},{'vector'})
+% validateattributes(hd.id,{'numeric'},{'vector','integer'})
+% validateattributes(hd.d,{'numeric'},{'vector'})
 validateattributes(hd.n,{'numeric'},{'integer','nonnegative','scalar'})
 validateattributes(Z,{'numeric'},{'2d'})
 validateattributes(G,{'numeric'},{'2d'})
@@ -89,7 +94,7 @@ S =  reshape(covar.g(0) - diag(W * CCb), ny, nx);
 %% Create Simulation
 zcs=nan(ny, nx,n_real);
 for i_real=1:n_real
-    zs = FGS(struct('x',x,'y',y), covar);
+    zs = FGS(struct('s',[numel(x) numel(y)]), covar);
     zhs = reshape( W * [G * zs{1}(:) ; zs{1}(hd.id)'], ny, nx);
     zcs(:,:,i_real) = zh + (zs{1} - zhs);
 end
