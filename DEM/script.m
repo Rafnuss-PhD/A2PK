@@ -7,18 +7,14 @@ yfs = 1:size(trainingFine,2);
 dx=size(trainingFine,1)/size(trainingCoarse,1);
 dy=size(trainingFine,2)/size(trainingCoarse,2);
 
-xcs = linspace(1.5,size(trainingFine,1)-.5,size(trainingCoarse,1));
-ycs = linspace(1.5,size(trainingFine,2)-.5,size(trainingCoarse,2));
+xcs = mean(xfs(1:dx)):dx:mean(xfs(end-dx+1:end));
+ycs = mean(yfs(1:dy)):dy:mean(yfs(end-dy+1:end));
 [Xcs, Ycs] = meshgrid(xcs,ycs);
 
+% Create Upscaling matrix for target
 G = zeros(numel(trainingCoarse), numel(trainingFine));
-for ij=1:numel(trainingFine)
-     [~,id_z]=min((Xfs(ij)-Xcs(:)).^2 + (Yfs(ij)-Ycs(:)).^2);
-     G(id_z,ij)=1;%/(Z.dx*Z.dy);
-end
-for ij = 1:numel(trainingCoarse)
-    G(ij,G(ij,:)==1) = 1 ./ sum(G(ij,:)==1);
-end
+[~,id] = min(bsxfun(@minus, Xcs(:), Xfs(:)').^2 + bsxfun(@minus, Ycs(:), Yfs(:)').^2);
+G(sub2ind(size(G), id, 1:size(G,2))) = 1/(dx*dy);
 
 % Check upscaling in intial space (non-transformed)
 figure;
@@ -76,7 +72,8 @@ addpath('../functions')
 addpath('../FastGaussianSimulation/')
 [gamma_x, gamma_y] = variogram_gridded_perso(trainingFineTrans);
 
-y = mean([gamma_x(1:51) gamma_y(1:51)],2);
+xi=0:50;
+y = mean([gamma_x(xi+1) gamma_y(xi+1)],2);
 fun1 = @(x) fun(x,xi,y);
 x0=[1 1 1];
 xmin = fmincon(fun1, x0,[],[],[],[],[0.001 .9 0.1],[100 1.1 10],[]);
@@ -87,17 +84,17 @@ covar.var = xmin(2);
 covar.range = [xmin(3) xmin(3)];
 covar = covarIni(covar);
 
-covar2.model = 'spherical';
-covar2.var = 1;
-covar2.range = [7 7];
-covar2 = covarIni(covar2);
+% covar2.model = 'spherical';
+% covar2.var = 1;
+% covar2.range = [7 7];
+% covar2 = covarIni(covar2);
 
-xi=0:50;
+
 figure; hold on;
 plot(xi,gamma_x(1:51));
 plot(xi,gamma_y(1:51));
 plot(xi,1-covar.g(xi*covar.cx(1)),'linewidth',2);
-plot(xi,1-covar2.g(xi*covar2.cx(1)),'linewidth',2);
+% plot(xi,1-covar2.g(xi*covar2.cx(1)),'linewidth',2);
 
 
 
@@ -107,18 +104,18 @@ addpath('..')
 xfs = 1:size(targetFine,1);
 yfs = 1:size(targetFine,2);
 [Xfs, Yfs] = meshgrid(xfs, yfs);
-xcs = linspace(1.5,size(targetFine,1)-.5,size(targetCoarse,1));
-ycs = linspace(1.5,size(targetFine,2)-.5,size(targetCoarse,2));
+dx = size(targetCoarse,1) / size(targetFine,1);
+dy = size(targetCoarse,2) / size(targetFine,2);
+
+xcs = mean(xfs(1:dx)):dx:mean(xfs(end-dx+1:end));
+ycs = mean(yfs(1:dy)):dy:mean(yfs(end-dy+1:end));
 [Xcs, Ycs] = meshgrid(xcs,ycs);
 
+% Create Upscaling matrix for target
 G = zeros(numel(targetCoarse), numel(targetFine));
-for ij=1:numel(targetFine)
-     [~,id_z]=min((Xfs(ij)-Xcs(:)).^2 + (Yfs(ij)-Ycs(:)).^2);
-     G(id_z,ij)=1;%/(Z.dx*Z.dy);
-end
-for ij = 1:numel(targetCoarse)
-    G(ij,G(ij,:)==1) = 1 ./ sum(G(ij,:)==1);
-end
+[~,id] = min(bsxfun(@minus,Xcs(:), Xfs(:)').^2 + bsxfun(@minus, Ycs(:), Yfs(:)').^2);
+G(sub2ind(size(G), id, numel(targetFine))) = 1/(dx*dy);
+
 
 targetCoarseTrans = Phi_cs(targetCoarse);
 n_real = 5;
