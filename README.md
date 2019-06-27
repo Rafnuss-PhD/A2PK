@@ -15,7 +15,7 @@ The following two scripts give a step-by-step instruction to run area-to-point k
 ### Application to Electrical Resistivity Tomography (ERT)
 During my PhD, I applied A2PK to the simulation of a fine-scale scale electrical conductivity field, based on the smooth result of a deterministic inversion of an electrical resistivity tomography (ERT). The code used for this can be found in [the ERT folder](https://github.com/Rafnuss-PhD/A2PK/tree/master/ERT), and, in particular, the published script [``script_ERT.mlx``](https://Rafnuss-phd.github.io/A2PK/ERT/script_ERT). 
 
-This work has led to a paper which is currently under revision. I'll provide the link as soons as it is available. 
+- Nussbaumer, R., Linde, N., Mariethoz, G., & Holliger, K. (2019). simulation of fine-scale electrical conductivity fields using resolution-limited tomograms and area-to-point kriging. *Geophysical Journal International*, 218(2), 1322–1335. [10.1093/gji/ggz185](https://doi.org/10.1093/gji/ggz185)
 
 ### Application to Hydraulic tomography (HT)
 We also worked on an adaptation of a similar technique for hydraulic tomography. Refer to [the HT folder](https://github.com/Rafnuss-PhD/A2PK/tree/master/HT), and more precisely to [the main script](https://github.com/Rafnuss-PhD/A2PK/blob/master/HT/script_elec_cond.m). Despite promising results, I did not finish this work because of time constraint.
